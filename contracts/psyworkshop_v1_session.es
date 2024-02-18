@@ -95,8 +95,17 @@
 
                 val collateral: Long = sessionBoxOut.tokens(3)
 
-                val validSigUSD: Boolean = (collateral._1 == sessionPriceTokenId)
-                val validCollateral: Boolean = (100L * collateral._2 == 10L * sessionPrice)
+                val validSigUSD: Boolean = {
+                    
+                    (collateral._1 == sessionPriceTokenId)
+                    
+                }
+                
+                val validCollateral: Boolean = {
+                    
+                    (100L * collateral._2 == 10L * sessionPrice)
+                    
+                }
 
                 allOf(Coll(
                     validSigUSD,
@@ -107,7 +116,7 @@
 
             val validStatusSessionUpdate: Boolean = {
 
-                (true, psychologistAddressBytes) == sessionBoxOut.R4[(Boolean, Coll[Byte])].get
+                ((true, psychologistAddressBytes) == sessionBoxOut.R4[(Boolean, Coll[Byte])].get)
 
             }
 
@@ -149,7 +158,11 @@
             val psychologistPKBoxOut: Box = OUTPUTS(1)
             val psyworkshopFeeBoxOut: Box = OUTPUTS(2)
 
-            val validCancelationPeriod: Boolean = (sessionStartTimeBlockHeight - CONTEXT.HEIGHT >= sesssionCancelationPeriod)
+            val validCancelationPeriod: Boolean = {
+                
+                (sessionStartTimeBlockHeight - CONTEXT.HEIGHT >= sesssionCancelationPeriod)
+                
+            }
 
             val validPsychologist: Boolean = {
 
@@ -184,12 +197,7 @@
 
                 val validSession: Boolean = {
 
-                    val sessionStatus: (Boolean, Coll[Byte]) = SELF.R4[(Boolean, Coll[Byte])].get
-
-                    allOf(Coll(
-                        (true == sessionStatus._1),
-                        (psychologistAddressBytes == sessionStatus._2)
-                    ))
+                    ((true, psychologistAddressBytes) == SELF.R4[(Boolean, Coll[Byte])].get)
 
                 }
 
@@ -202,8 +210,17 @@
 
             val validClientRefundBoxOut: Boolean = {
 
-                val validClientRefundAmount: Boolean = (clientPKBoxOut.tokens == (sessionPriceTokenId, sessionPrice))
-                val validClientRefundAddress: Boolean = (clientPKBoxOut.propositionBytes == clientAddress)
+                val validClientRefundAmount: Boolean = {
+                    
+                    (clientPKBoxOut.tokens == (sessionPriceTokenId, sessionPrice))
+                    
+                }
+
+                val validClientRefundAddress: Boolean = {
+                    
+                    (clientPKBoxOut.propositionBytes == clientAddress)
+                    
+                }
 
                 allOf(Coll(
                     validClientRefundAmount,
@@ -224,7 +241,11 @@
 
                 }
 
-                val validPsychologistAddress: Boolean = (psychologistPKBoxOut.propositionBytes == SELF.R4[(Boolean, Coll[Byte])].get._2)
+                val validPsychologistAddress: Boolean = {
+                    
+                    (psychologistPKBoxOut.propositionBytes == SELF.R4[(Boolean, Coll[Byte])].get._2)
+                    
+                }
 
                 allOf(Coll(
                     validCollateralAmount,
@@ -235,7 +256,11 @@
 
             val validPsyworkshopFeeBoxOut: Boolean = {
 
-                val validValue: Boolean = (psyworkshopFeeBoxOut.value == SELF.value)
+                val validValue: Boolean = {
+                    
+                    (psyworkshopFeeBoxOut.value == SELF.value)
+                    
+                }
 
                 // The fee is 50% of the collateral provided by the psychologist.
                 val validFeeAmount: Boolean = {
@@ -247,7 +272,11 @@
 
                 }
 
-                val validFeeAddress: Boolean = (psyworkshopFeeBoxOut.propositionBytes == $psyworkshopFeeAddress)
+                val validFeeAddress: Boolean = {
+                    
+                    (psyworkshopFeeBoxOut.propositionBytes == $psyworkshopFeeAddress)
+                    
+                }
 
                 allOf(Coll(
                     validFeeAmount,
@@ -268,7 +297,7 @@
 
                 }).forall( (token_id: Coll[Byte]) => { 
                     
-                    token_id != $psyworkshopRegistrationTokenId 
+                    (token_id != $psyworkshopRegistrationTokenId) 
                 
                 })
 
@@ -296,14 +325,31 @@
             // Ouptuts
             val clientPKBoxOut: Box = OUTPUTS(0)
 
-            val validUnacceptedPeriod: Boolean = (sessionStartTimeBlockHeight - CONTEXT.HEIGHT <= sessionUnacceptedPeriod)
+            val validUnacceptedPeriod: Boolean = {
+                
+                (sessionStartTimeBlockHeight - CONTEXT.HEIGHT <= sessionUnacceptedPeriod)
+                
+            }
 
-            val validUnacceptedSession: Boolean = ((false, Coll[Byte]()) == SELF.R4[(Boolean, Coll[Byte])].get)
+            val validUnacceptedSession: Boolean = {
+                
+                ((false, Coll[Byte]()) == SELF.R4[(Boolean, Coll[Byte])].get)
+                
+            }
 
             val validClientRefundBoxOut: Boolean = {
 
-                val validClientRefundAmount: Boolean = (clientPKBoxOut.tokens == (sessionPriceTokenId, sessionPrice))
-                val validClientRefundAddress: Boolean = (clientPKBoxOut.propositionBytes == clientAddress)
+                val validClientRefundAmount: Boolean = {
+
+                    (clientPKBoxOut.tokens == (sessionPriceTokenId, sessionPrice))
+                
+                }
+                
+                val validClientRefundAddress: Boolean = {
+
+                    (clientPKBoxOut.propositionBytes == clientAddress)
+
+                }
 
                 allOf(Coll(
                     validClientRefundAmount,
