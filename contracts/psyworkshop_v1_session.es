@@ -40,6 +40,7 @@
     // 2: Cancel Session Tx
     // 3: Unaccepted Session Tx
     // 4: Session Start: Client Confirmation Tx
+    // 5: Session Start: Psychologist Confirmation Tx
 
     // ===== Relevant Variables ===== //
     val _txType: Option[Byte] = getVar[Byte](0)
@@ -60,8 +61,8 @@
     val isSessionAccepted: Boolean = psychologistSessionStatus._2._1
     val isPschologistPresent: Boolean = psychologistSessionStatus._2._2
 
-    val sesssionCancelationPeriod: Int = 720 // The cancelation period is 24hrs, thus since there is 1 block every 2 minutes on average, there are 720 blocks every 24hrs on average.
-    val sessionUnacceptedPeriod: Int = 60 // If no psychologist accepts the session within 2hrs of the session start time, thus since there is 1 block every 2 minutes on average, there are 60 blocks every 2hrs on average.
+    val sesssionCancelationPeriod: Int = 720    // The cancelation period is 24hrs, thus since there is 1 block every 2 minutes on average, there are 720 blocks every 24hrs on average.
+    val sessionUnacceptedPeriod: Int = 60       // If no psychologist accepts the session within 2hrs of the session start time, thus since there is 1 block every 2 minutes on average, there are 60 blocks every 2hrs on average.
 
     if (_txType.get == 1.toByte) {
 
@@ -429,7 +430,7 @@
 
                 val validPsychologistSessionStatus: Boolean = {
 
-                    (isSessionAccepted)
+                    (isSessionAccepted) // Client cannot confirm they are present before the psychologist has accepted the session.
 
                 }
 
@@ -456,7 +457,7 @@
                     (sessionBoxOut.tokens(1) == (sessionPriceTokenId, sessionPrice)),
                     (sessionBoxOut.tokens(2) == SELF.tokens(2)) // Psychologist collateral.
                     (sessionBoxOut.R4[Int].get == sessionStartTimeBlockHeight),
-                    (sessionBoxOut.R6[(Coll[Byte], (Boolean, Boolean))] == psychologistSessionStatus)
+                    (sessionBoxOut.R6[(Coll[Byte], (Boolean, Boolean))].get == psychologistSessionStatus)
                 ))
 
             }
@@ -469,6 +470,68 @@
         }
 
         sigmaProp(validSessionStartClientConfirmationTx)
+
+    } else if (_txType.get == 5.toByte) {
+
+        val validSessionStartPsychologistConfirmationTx: Boolean = {
+
+            // Inputs
+            val psychologistPKBoxIn: Box = INPUTS(1)
+
+            // Outputs
+            val sessionBoxOut: Box = OUTPUTS(0)
+
+            val validPsychologistConfirmation: Boolean = {
+
+                val validPsychologistAddress: Boolean = {
+
+                    (psychologistPKBoxIn.propositionBytes == psychologistAddressBytes)
+
+                }
+
+
+                val validPsychologistSessionStatus: Boolean = {
+
+                    (isSessionAccepted) // Psychologist cannot confirm they are present before accepting the session.
+
+                }
+
+                val validPsychologistSessionStatusUpdate: Boolean = {
+
+                    (sessionBoxOut.R6[(Coll[Byte], (Boolean, Boolean))].get == (psychologistAddressBytes, (isSessionAccepted, true)))
+
+                }
+
+                allOf(Coll(
+                    validPsychologistAddress,
+                    validPsychologistSessionStatus,
+                    validPsychologistSessionStatusUpdate
+                ))                
+
+            }
+
+            val validSessionRecreation: Boolean = {
+
+                allOf(Coll(
+                    (sessionBoxOut.value == SELF.value),
+                    (sessionBoxOut.propositionBytes == SELF.propositionBytes),
+                    (sessionBoxOut.tokens(0) == (sessionSingletonId, 1L)),
+                    (sessionBoxOut.tokens(1) == (sessionPriceTokenId, sessionPrice)),
+                    (sessionBoxOut.tokens(2) == SELF.tokens(2)) // Psychologist collateral.
+                    (sessionBoxOut.R4[Int].get == sessionStartTimeBlockHeight),
+                    (sessionBoxOut.R5[(Coll[Byte], Boolean)].get == clientSessionStatus)
+                ))
+
+            }
+
+            allOf(Coll(
+                validPsychologistConfirmation,
+                validSessionRecreation
+            ))
+
+        }
+
+        sigmaProp(validSessionStartPsychologistConfirmationTx)
 
     } else {
         sigmaProp(false)
