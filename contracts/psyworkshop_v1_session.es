@@ -41,6 +41,7 @@
     // 3: Unaccepted Session Tx
     // 4: Session Start: Client Confirmation Tx
     // 5: Session Start: Psychologist Confirmation Tx
+    // 6: Session Start: Psychologist Not Present Tx
 
     // ===== Relevant Variables ===== //
     val _txType: Option[Byte] = getVar[Byte](0)
@@ -448,6 +449,12 @@
 
             }
 
+            val validSessionStartTime: Boolean = {
+
+                (CONTEXT.HEIGHT >= sessionStartTimeBlockHeight) // TODO: Maybe come up with better method than this, need to discuss.
+
+            }
+
             val validSessionRecreation: Boolean = {
 
                 allOf(Coll(
@@ -464,6 +471,7 @@
 
             allOf(Coll(
                 validClientConfirmation,
+                validSessionStartTime,
                 validSessionRecreation
             ))
 
@@ -532,6 +540,17 @@
         }
 
         sigmaProp(validSessionStartPsychologistConfirmationTx)
+
+    } else if (_txType.get == 6.toByte) {
+
+        // ===== Session Start: Psychologist Not Present Tx ===== //
+        val validSessionStartPsychologistNotPresentTx: Boolean = {
+
+            
+
+        }
+
+        sigmaProp(validSessionStartPsychologistNotPresentTx)
 
     } else {
         sigmaProp(false)
