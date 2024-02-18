@@ -64,6 +64,8 @@
 
     val sesssionCancelationPeriod: Int = 720    // The cancelation period is 24hrs, thus since there is 1 block every 2 minutes on average, there are 720 blocks every 24hrs on average.
     val sessionUnacceptedPeriod: Int = 60       // If no psychologist accepts the session within 2hrs of the session start time, thus since there is 1 block every 2 minutes on average, there are 60 blocks every 2hrs on average.
+    val fiveMinutes: Int = 3                    // 1 block every 2 minutes on average, so 2.5 blocks every 5 minutes on average, so we round up.
+    val tenMinutes: Int = 5                     // 1 block every 2 minutes on average, so 5 blocks every 10 minutes on average.
 
     if (_txType.get == 1.toByte) {
 
@@ -234,7 +236,7 @@
 
                     allOf(Coll(
                         (psychologistPKBoxOut.tokens(0)._1 == SELF.tokens(2)._1),
-                        (psychologistPKBoxOut.tokens(0)._2 * 2 == SELF.tokens(2)._2)
+                        (psychologistPKBoxOut.tokens(0)._2 == SELF.tokens(2)._2 / 2)
                     ))
 
                 }
@@ -265,7 +267,7 @@
 
                     allOf(Coll(
                         (psyworkshopFeeBoxOut.tokens(0)._1 == SELF.tokens(2)._1),
-                        (psyworkshopFeeBoxOut.tokens(0)._2 * 2 == SELF.tokens(2)._2)
+                        (psyworkshopFeeBoxOut.tokens(0)._2 == SELF.tokens(2)._2 / 2)
                     ))
 
                 }
@@ -283,20 +285,31 @@
 
             }
 
-            val validSessionBurn: Boolean = {
+            val validSessionTermination: Boolean = {
 
-                OUTPUTS.flatMap( (output: Box) => {
+                OUTPUTS.forall( (output: Box) => {
 
-                    output.tokens.map( (token: (Coll[Byte], Long)) => { 
+                    val validSingletonBurn: Boolean = {
+
+                        output.tokens.forall( (token: (Coll[Byte], Long)) => { 
+                            
+                            (token._1 != $psyworkshopRegistrationTokenId) 
                         
-                        token._1 
-                    
-                    })
+                        })                        
 
-                }).forall( (token_id: Coll[Byte]) => { 
-                    
-                    (token_id != $psyworkshopRegistrationTokenId) 
-                
+                    }
+
+                    val validSessionBoxDestruction: Boolean = {
+
+                        (output.propositionBytes != SELF.propositionBytes)
+
+                    }
+
+                    allOf(Coll(
+                        validSingletonBurn,
+                        validSessionBoxDestruction
+                    ))
+
                 })
 
             }
@@ -307,7 +320,7 @@
                 validClientRefundBoxOut,
                 validPsychologistBoxOut,
                 validPsyworkshopFeeBoxOut,
-                validSessionBurn
+                validSessionTermination
             ))
 
         }
@@ -378,22 +391,33 @@
                     validClientRefundAddress
                 ))
 
-            }            
+            }      
 
-            val validSessionBurn: Boolean = {
+            val validSessionTermination: Boolean = {
 
-                OUTPUTS.flatMap( (output: Box) => {
+                OUTPUTS.forall( (output: Box) => {
 
-                    output.tokens.map( (token: (Coll[Byte], Long)) => { 
+                    val validSingletonBurn: Boolean = {
+
+                        output.tokens.forall( (token: (Coll[Byte], Long)) => { 
+                            
+                            (token._1 != $psyworkshopRegistrationTokenId) 
                         
-                        token._1 
-                    
-                    })
+                        })                        
 
-                }).forall( (token_id: Coll[Byte]) => { 
-                    
-                    (token_id != SessionSingletonId)
-                
+                    }
+
+                    val validSessionBoxDestruction: Boolean = {
+
+                        (output.propositionBytes != SELF.propositionBytes)
+
+                    }
+
+                    allOf(Coll(
+                        validSingletonBurn,
+                        validSessionBoxDestruction
+                    ))
+
                 })
 
             }
@@ -402,7 +426,7 @@
                 validUnacceptedPeriod,
                 validUnacceptedSession,
                 validClientRefundBoxOut,
-                validSessionBurn
+                validSessionTermination
             ))
 
         }
@@ -489,6 +513,25 @@
             // Outputs
             val sessionBoxOut: Box = OUTPUTS(0)
 
+            // Relevant Variables
+            val isFiveMinutesLate: Boolean = {
+
+                (CONTEXT.HEIGHT - sessionStartTimeBlockHeight >= fiveMinutes)
+
+            }
+
+            val isTenMinutesLate: Boolean = {
+
+                (CONTEXT.HEIGHT - sessionStartTimeBlockHeight >= tenMinutes)
+
+            }
+
+            val isPsychologistLate: Boolean = {
+
+                isFiveMinutesLate
+
+            }
+
             val validPsychologistConfirmation: Boolean = {
 
                 val validPsychologistAddress: Boolean = {
@@ -496,7 +539,6 @@
                     (psychologistPKBoxIn.propositionBytes == psychologistAddressBytes)
 
                 }
-
 
                 val validPsychologistSessionStatus: Boolean = {
 
@@ -518,14 +560,81 @@
 
             }
 
+            val validSessionStartTime: Boolean = {
+
+                if (isPsychologistLate) {
+
+                    // Outputs
+                    val clientPKBoxOut: Box = OUTPUTS(1)
+
+                    val validClientDiscount: Boolean = {
+
+                        val validDiscountToken: Boolean = {
+                        
+                            (clientPKBoxOut.tokens(0)._1 = sessionPriceTokenId)
+                        
+                        }
+
+                        val validDiscountAmount: Boolean = {
+
+                            if (isFiveMinutesLate) {
+                                
+                                (clientPKBoxOut.tokens(0)._2 == sessionPrice / 10)
+                                
+
+                            } else if (isTenMinutesLate) {
+
+                                (clientPKBoxOut.tokens(0)._2 == sessionPrice / 2)
+
+                            } else {
+                                true
+                            }
+
+                        }
+
+                    }
+                
+                    val validClientDiscountAddress: Boolean = {
+
+                        (clientPKBoxOut.propositionBytes == clientAddressBytes)
+
+                    }
+
+                    allOf(Coll(
+                        validClientDiscountAmount,
+                        validClientDiscountAddress
+                    ))
+
+                } else {
+                    true
+                }
+
+            }
+
             val validSessionRecreation: Boolean = {
 
                 allOf(Coll(
                     (sessionBoxOut.value == SELF.value),
                     (sessionBoxOut.propositionBytes == SELF.propositionBytes),
                     (sessionBoxOut.tokens(0) == (sessionSingletonId, 1L)),
-                    (sessionBoxOut.tokens(1) == (sessionPriceTokenId, sessionPrice)),
-                    (sessionBoxOut.tokens(2) == SELF.tokens(2)) // Psychologist collateral.
+                    (sessionBoxOut.tokens(1) == (sessionPriceTokenId, {
+
+                        if (isFiveMinutesLate) {
+
+                            (sessionPrice * 9) / 10
+
+                        } else if (isTenMinutesLate) {
+
+                            (sessionPrice / 2)
+
+                        } else {
+
+                            sessionPrice
+
+                        }
+
+                    })),
+                    (sessionBoxOut.tokens(2) == SELF.tokens(2)), // Psychologist collateral.
                     (sessionBoxOut.R4[Int].get == sessionStartTimeBlockHeight),
                     (sessionBoxOut.R5[(Coll[Byte], Boolean)].get == clientSessionStatus)
                 ))
@@ -534,6 +643,7 @@
 
             allOf(Coll(
                 validPsychologistConfirmation,
+                validSessionStartTime,
                 validSessionRecreation
             ))
 
