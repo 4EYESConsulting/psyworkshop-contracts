@@ -62,7 +62,7 @@
             // Outputs
             val sessionBoxOut: Box = OUTPUTS(0)
 
-            val validPsychologist: Boolean = { // TODO: May need to use AVL trees for this instead.
+            val validPsychologist: Boolean = {
 
                 psychologistBoxesIn.exists( (box: Box) => {
 
@@ -100,7 +100,7 @@
                     (collateral._1 == sessionPriceTokenId)
                     
                 }
-                
+
                 val validCollateral: Boolean = {
                     
                     (100L * collateral._2 == 10L * sessionPrice)
