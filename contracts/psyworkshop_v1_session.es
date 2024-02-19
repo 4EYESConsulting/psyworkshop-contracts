@@ -804,13 +804,13 @@
 
                     val validPsychologistTokens: Boolean = {
 
-                        (psychologistPKBoxOut.tokens(0) == (sessionPriceTokenId, sessionPrice + SELF))
+                        (psychologistPKBoxOut.tokens(0) == (sessionPriceTokenId, sessionPrice + (collateral / 2))) // TODO: Ask about this, why should psychologist be penalized for client not showing up.
 
                     }
 
                     allOf(Coll(
-                        validClientAddressBytes
-                        validClientRefundTokens
+                        validPsychologistAddressBytes,
+                        validPsychologistTokens
                     ))
 
                 }
@@ -826,7 +826,7 @@
                     // The fee is 100% of the collateral provided by the psychologist.
                     val validFeeAmount: Boolean = {
 
-                        (psyworkshopFeeBoxOut.tokens(0) == SELF.tokens(2))
+                        (psyworkshopFeeBoxOut.tokens(0) == (sessionPriceTokenId, (collateral / 2)))
 
                     }
 
@@ -874,9 +874,8 @@
                 }
 
                 allOf(Coll(
-                    validClientSessionStatus,
                     validPsychologistSessionStatus,
-                    validClientPKBoxOut,
+                    validPsychologistPKBoxOut,
                     validPsyworkshopFeeBoxOut,
                     validSessionTermination
                 ))                
