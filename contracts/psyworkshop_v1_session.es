@@ -1228,6 +1228,12 @@
 
             }
 
+            val validAdminPKBoxIn: Boolean = {
+
+                (adminPKBoxIn.propositionBytes == $psyworkshopAdminSigmaProp.propBytes)
+
+            }
+
             val validClientRefundBoxOut: Boolean = {
 
                 val validClientRefundAddressBytes: Boolean = {
@@ -1305,6 +1311,7 @@
             allOf(Coll(
                 validSessionPeriod,
                 validSessionProblemStatus,
+                validAdminPKBoxIn,
                 validClientRefundBoxOut,
                 validPsychologistRefundBoxOut,
                 validSessionTermination
@@ -1312,7 +1319,7 @@
 
         }
 
-        sigmaProp(validSessionEndProblemMessageOption1Tx)
+        sigmaProp(validSessionEndProblemMessageOption1Tx) && $psyworkshopAdminSigmaProp
 
     } else if (_txType.get == 12.toByte) {
 
@@ -1339,6 +1346,11 @@
 
             }
 
+            val validAdminPKBoxIn: Boolean = {
+
+                (adminPKBoxIn.propositionBytes == $psyworkshopAdminSigmaProp.propBytes)
+
+            }
 
             val validClientRefundBoxOut: Boolean = {
 
@@ -1446,6 +1458,7 @@
             allOf(Coll(
                 validSessionPeriod,
                 validSessionProblemStatus,
+                validAdminPKBoxIn,
                 validClientRefundBoxOut,
                 validPsychologistRefundBoxOut,
                 validPsyworkshopFeeBoxOut,
@@ -1454,7 +1467,7 @@
 
         }
 
-        sigmaProp(validSessionEndProblemMessageOption2Tx)
+        sigmaProp(validSessionEndProblemMessageOption2Tx) && $psyworkshopAdminSigmaProp
         
     } else {
         sigmaProp(false)
