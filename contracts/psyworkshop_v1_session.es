@@ -43,7 +43,8 @@
     // 4: Session Start: Client Confirmation Tx
     // 5: Session Start: Psychologist Confirmation Tx
     // 6: Session Start: Psychologist Not Present Tx
-    // 7: Session End: No Problem Message
+    // 7: Session Start: Client Not Present Tx
+    // 8: Session End: No Problem Message
 
     // ===== Relevant Variables ===== //
     val _txType: Option[Byte] = getVar[Byte](0)
@@ -775,7 +776,7 @@
 
         sigmaProp(validSessionStartPsychologistNotPresentTx)
 
-    } else if (_txType.get == 7.toByte) {
+    } else if (_txType.get == 8.toByte) {
 
         // ===== Session End: No Problem Message ===== //
         val validSessionEndNoProblemMessageTx: Boolean = {
