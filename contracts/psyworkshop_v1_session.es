@@ -15,6 +15,7 @@
     // R4: Int                              sessionStartTimeBlockHeight // TODO: Ask about session length or session end time.
     // R5: (SigmaProp, Boolean)            (clientAddressSigmaProp, isPresent)
     // R6: (SigmaProp, (Boolean, Boolean)) (psychologistAddressSigmaProp, (isSessionAccepted, isPresent)) 
+    // R7: Boolean                          isSessionProblem
 
     // ===== Relevant Transactions ===== //
     // 1. Accept Session Tx
@@ -37,15 +38,16 @@
     // _txType: Byte
 
     // ===== Tx Type Bytes ===== //
-    // 1: Accept Session Tx
-    // 2: Cancel Session Tx
-    // 3: Unaccepted Session Tx
-    // 4: Session Start: Client Confirmation Tx
-    // 5: Session Start: Psychologist Confirmation Tx
-    // 6: Session Start: Psychologist Not Present Tx
-    // 7: Session Start: Client Not Present Tx
-    // 8: Session End: No Problem Message
-    // 9: Session End: Problem Message
+    //  1: Accept Session Tx
+    //  2: Cancel Session Tx
+    //  3: Unaccepted Session Tx
+    //  4: Session Start: Client Confirmation Tx
+    //  5: Session Start: Psychologist Confirmation Tx
+    //  6: Session Start: Psychologist Not Present Tx
+    //  7: Session Start: Client Not Present Tx
+    //  8: Session End: No Problem Message Tx
+    //  9: Session End: Problem Message Tx
+    // 10: Session End: Problem Message - Option 1 Tx
 
     // ===== Relevant Variables ===== //
     val _txType: Option[Byte] = getVar[Byte](0)
@@ -65,6 +67,8 @@
     val psychologistAddressBytes: SigmaProp = psychologistSessionStatus._1
     val isSessionAccepted: Boolean = psychologistSessionStatus._2._1
     val isPsychologistPresent: Boolean = psychologistSessionStatus._2._2
+
+    val isSessionProblem: Boolean = SELF.R7[Boolean].get
 
     val sessionLength: Int = 30                 // The session lasts 60 minutes, so 30 blocks on average since there is 1 block every 2 minutes on average.
     val sesssionCancelationPeriod: Int = 720    // The cancelation period is 24hrs, thus since there is 1 block every 2 minutes on average, there are 720 blocks every 24hrs on average.
@@ -238,7 +242,7 @@
 
                 val validClientRefundAmount: Boolean = {
                     
-                    (clientPKBoxOut.tokens == (sessionPriceTokenId, sessionPrice))
+                    (clientPKBoxOut.tokens(0) == (sessionPriceTokenId, sessionPrice))
                     
                 }
 
@@ -400,7 +404,7 @@
 
                 val validClientRefundAmount: Boolean = {
 
-                    (clientPKBoxOut.tokens == (sessionPriceTokenId, sessionPrice))
+                    (clientPKBoxOut.tokens(0) == (sessionPriceTokenId, sessionPrice))
                 
                 }
                 
@@ -924,6 +928,12 @@
 
             }
 
+            val validNoProblemStatus: Boolean = {
+
+                (!isSessionProblem)
+
+            }   
+
             val validPsychologistBoxOut: Boolean = {
 
                 val validSessionPriceAmount: Boolean = {
@@ -1026,6 +1036,7 @@
 
             allOf(Coll(
                 validSessionPeriod,
+                validNoProblemStatus,
                 validPsychologistBoxOut,
                 validPsyworkshopFeeBoxOut,
                 validSessionTermination
@@ -1052,20 +1063,139 @@
 
             }
 
-            val validAdminControl: Boolean = {
+            val validProblemStatusUpdate: Boolean = {
 
-                (sessionBoxOut.propositionBytes == $psyworkshopAdminSigmaProp.propBytes)
+                (sessionBoxOut.R7[Boolean].get == true)
+
+            }
+
+            val validSessionRecreation: Boolean = {
+
+                allOf(Coll(
+                    (sessionBoxOut.value == SELF.value),
+                    (sessionBoxOut.propositionBytes == SELF.propositionBytes),
+                    (sessionBoxOut.tokens(0) == SELF.tokens(0)),
+                    (sessionBoxOut.tokens(1) == SELF.tokens(1)),
+                    (sessionBoxOut.tokens(2) == SELF.tokens(2))
+                    (sessionBoxOut.R4[Int].get == SELF.R4[Int].get),
+                    (sessionBoxOut.R5[(SigmaProp, Boolean)].get == SELF.R5[(SigmaProp, Boolean)].get),
+                    (sessionBoxOut.R6[(SigmaProp, (Boolean, Boolean))].get == SELF.R6[(SigmaProp, (Boolean, Boolean))].get)
+                ))
 
             }
 
             allOf(Coll(
                 validSessionPeriod,
-                validAdminControl
+                validProblemStatusUpdate,
+                validSessionRecreation
             ))
 
         }
 
         sigmaProp(validSessionEndProblemMessageTx)
+
+    } else if (_txType.get == 10.toByte) {
+
+        // ===== Session End: Problem Message - Option 1 Tx ===== //
+        val validSessionEndProblemMessageOption1Tx: Boolean = {
+
+            // Inputs
+            val adminPKBoxIn: Box = INPUTS(1)
+
+            // Outputs
+            val clientPKBoxOut: Box = OUTPUTS(0)
+            val psychologistPKBoxOut: Box = OUTPUTS(1)
+
+            val validSessionProblem: Boolean = {
+
+                (isSessionProblem)
+
+            }
+
+            val validClientRefundBoxOut: Boolean = {
+
+                val validClientRefundAddressBytes: Boolean = {
+                    
+                    (clientPKBoxOut.propositionBytes == clientAddressSigmaProp.propBytes)
+                
+                }
+
+                val validClientRefundAmount: Boolean = {
+                    
+                    (clientPKBoxOut.tokens(0) == SELF.tokens(1))
+                    
+                }
+
+                allOf(Coll(
+                    validClientRefundAmount,
+                    validClientRefundAddressBytes
+                ))
+
+            }
+
+            val validPsychologistRefundBoxOut: Boolean = {
+
+                val validPsychologistRefundAddressBytes: Boolean = {
+                    
+                    allOf(Coll(
+                        ($psyworkshopAdminSigmaProp.propositionBytes != psychologistAddressSigmaProp.propBytes),
+                        (clientPKBoxOut.propositionBytes == psychologistAddressSigmaProp.propBytes)
+                    ))    
+                
+                }
+
+                val validPsychologistRefundAmount: Boolean = {
+                    
+                    (psychologistPKBoxOut.tokens(0) == SELF.tokens(2))
+                    
+                }
+
+                allOf(Coll(
+                    validPsychologistRefundAddressBytes,
+                    validPsychologistRefundAmount
+                ))
+
+            }
+
+            val validSessionTermination: Boolean = {
+
+                OUTPUTS.forall( (output: Box) => {
+
+                    val validSingletonBurn: Boolean = {
+
+                        output.tokens.forall( (token: (Coll[Byte], Long)) => { 
+                            
+                            (token._1 != $psyworkshopRegistrationTokenId) 
+                        
+                        })                        
+
+                    }
+
+                    val validSessionBoxDestruction: Boolean = {
+
+                        (output.propositionBytes != SELF.propositionBytes)
+
+                    }
+
+                    allOf(Coll(
+                        validSingletonBurn,
+                        validSessionBoxDestruction
+                    ))
+
+                })
+
+            }
+
+            allOf(Coll(
+                validSessionProblem,
+                validClientRefundBoxOut,
+                validPsychologistRefundBoxOut,
+                validSessionTermination
+            ))
+
+        }
+
+        sigmaProp(validSessionEndProblemMessageOption1Tx)
 
     } else {
         sigmaProp(false)
