@@ -2,4 +2,4 @@
 ErgoScript contracts for PsyWORKshop.
 
 ## Protocol Diagrams
-![Image](/docs/psyworkshop_protocol_diagrams.png)
+![Image](/docs/psyworkshop_protocol_diagrams.svg)
