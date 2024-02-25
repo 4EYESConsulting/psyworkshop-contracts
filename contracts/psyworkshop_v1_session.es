@@ -45,10 +45,11 @@
     //  5: Session Start: Psychologist Confirmation Tx
     //  6: Session Start: Psychologist Not Present Tx
     //  7: Session Start: Client Not Present Tx
-    //  8: Session End: No Problem Message Tx
-    //  9: Session End: Problem Message Tx
-    // 10: Session End: Problem Message - Option 1 Tx
-    // 11: Session End: Problem Message - Option 2 Tx
+    //  8: Session Start: Client And Psychologist Not Present Tx
+    //  9: Session End: No Problem Message Tx
+    // 10: Session End: Problem Message Tx
+    // 11: Session End: Problem Message - Option 1 Tx
+    // 12: Session End: Problem Message - Option 2 Tx
 
     // ===== Relevant Variables ===== //
     val _txType: Option[Byte] = getVar[Byte](0)
@@ -77,6 +78,7 @@
     val fiveMinutes: Int = 3                    // 1 block every 2 minutes on average, so 2.5 blocks every 5 minutes on average, so we round up.
     val tenMinutes: Int = 5                     // 1 block every 2 minutes on average, so 5 blocks every 10 minutes on average.
     val fifteenMinutes: Int = 8                 // 1 block every 2 minutes on average, so 7.5 blocks every 15 minutes on average, so we round up.
+    val twentyMinutes: Int = 10                 // 1 block every 2 minutes on average, so 10 blocks every 20 minutes on average.
 
     val isFiveMinutesLate: Boolean = (CONTEXT.HEIGHT - sessionStartTimeBlockHeight >= fiveMinutes)
     val isTenMinutesLate: Boolean = (CONTEXT.HEIGHT - sessionStartTimeBlockHeight >= tenMinutes)
@@ -911,6 +913,115 @@
 
     } else if (_txType.get == 8.toByte) {
 
+        // ===== Session Start: Client And Psychologist Not Present Tx ===== //
+        val validSessionStartClientAndPsychologistNotPresentTx: Boolean = {
+            
+            // Inputs
+
+            // Outputs
+            val clientPKBoxOut: Box = OUTPUTS(0)
+            val psyworkshopFeeBoxOut: Box = OUTPUTS(1)
+
+            // Relevant variables
+            val isTwentyMinutesPast: Boolean = (CONTEXT.HEIGHT - sessionStartTimeBlockHeight >= twentyMinutes)
+
+            if (isSessionAccepted && !isPsychologistPresent && !isClientPresent && isTwentyMinutesPast) {
+
+                val validClientRefundBoxOut: Boolean = {
+
+                    val validClientAddressBytes: Boolean = {
+
+                        (clientPKBoxOut.propositionBytes == clientAddressSigmaProp.propBytes)
+
+                    }
+
+                    val validClientRefundTokens: Boolean = {
+
+                        (clientPKBoxOut.tokens(0) == (sessionPriceTokenId, sessionPrice))
+
+                    }
+
+                    allOf(Coll(
+                        validClientAddressBytes
+                        validClientRefundTokens
+                    ))
+
+                }
+            
+                val validPsyworkshopFeeBoxOut: Boolean = {
+
+                    val validValue: Boolean = {
+                        
+                        (psyworkshopFeeBoxOut.value == SELF.value)
+                        
+                    }
+
+                    // The fee is 100% of the collateral provided by the psychologist.
+                    val validFeeAmount: Boolean = {
+
+                        (psyworkshopFeeBoxOut.tokens(0) == SELF.tokens(2))
+
+                    }
+
+                    val validFeeAddressBytes: Boolean = {
+                        
+                        (psyworkshopFeeBoxOut.propositionBytes == $psyworkshopFeeAddressBytes)
+                        
+                    }
+
+                    allOf(Coll(
+                        validValue,
+                        validFeeAmount,
+                        validFeeAddressBytes
+                    ))
+
+                }
+
+                val validSessionTermination: Boolean = {
+
+                    OUTPUTS.forall( (output: Box) => {
+
+                        val validSingletonBurn: Boolean = {
+
+                            output.tokens.forall( (token: (Coll[Byte], Long)) => { 
+                                
+                                (token._1 != $psyworkshopRegistrationTokenId) 
+                            
+                            })                        
+
+                        }
+
+                        val validSessionBoxDestruction: Boolean = {
+
+                            (output.propositionBytes != SELF.propositionBytes)
+
+                        }
+
+                        allOf(Coll(
+                            validSingletonBurn,
+                            validSessionBoxDestruction
+                        ))
+
+                    })
+
+                }
+
+                allOf(Coll(
+                    validClientRefundBoxOut,
+                    validPsyworkshopFeeBoxOut,
+                    validSessionTermination
+                ))
+
+            } else {
+                false
+            }
+
+        }
+
+        sigmaProp(validSessionStartClientAndPsychologistNotPresentTx)
+
+    } else if (_txType.get == 9.toByte) {
+
         // ===== Session End: No Problem Message ===== //
         val validSessionEndNoProblemMessageTx: Boolean = {
 
@@ -1045,7 +1156,7 @@
 
         sigmaProp(validSessionEndNoProblemMessageTx)
 
-    } else if (_txType.get == 9.toByte) {
+    } else if (_txType.get == 10.toByte) {
 
         // ===== Session End: Problem Message Tx ===== //
         val validSessionEndProblemMessageTx: Boolean = {
@@ -1093,7 +1204,7 @@
 
         sigmaProp(validSessionEndProblemMessageTx)
 
-    } else if (_txType.get == 10.toByte) {
+    } else if (_txType.get == 11.toByte) {
 
         // ===== Session End: Problem Message - Option 1 Tx ===== //
         val validSessionEndProblemMessageOption1Tx: Boolean = {
@@ -1203,7 +1314,7 @@
 
         sigmaProp(validSessionEndProblemMessageOption1Tx)
 
-    } else if (_txType.get == 11.toByte) {
+    } else if (_txType.get == 12.toByte) {
 
         // ===== Session End Problem Message - Option 2 Tx ===== //
         val validSessionEndProblemMessageOption2Tx: Boolean = {
