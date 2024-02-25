@@ -45,6 +45,7 @@
     // 6: Session Start: Psychologist Not Present Tx
     // 7: Session Start: Client Not Present Tx
     // 8: Session End: No Problem Message
+    // 9: Session End: Problem Message
 
     // ===== Relevant Variables ===== //
     val _txType: Option[Byte] = getVar[Byte](0)
@@ -527,6 +528,7 @@
 
     } else if (_txType.get == 5.toByte) {
 
+        // ===== Session Start: Psychologist Confirmation Tx ===== //
         val validSessionStartPsychologistConfirmationTx: Boolean = {
 
             // Inputs
@@ -1032,6 +1034,38 @@
         }
 
         sigmaProp(validSessionEndNoProblemMessageTx)
+
+    } else if (_txType.get == 9.toByte) {
+
+        // ===== Session End: Problem Message Tx ===== //
+        val validSessionEndProblemMessageTx: Boolean = {
+
+            // Inputs
+            val clientPKBoxIn: Box = INPUTS(1)
+
+            // Outputs
+            val sessionBoxOut: Box = OUTPUTS(0)
+
+            val validSessionPeriod: Boolean = {
+
+                (CONTEXT.HEIGHT >= sessionStartTimeBlockHeight + sessionLength)
+
+            }
+
+            val validAdminControl: Boolean = {
+
+                (sessionBoxOut.propositionBytes == $psyworkshopAdminSigmaProp.propBytes)
+
+            }
+
+            allOf(Coll(
+                validSessionPeriod,
+                validAdminControl
+            ))
+
+        }
+
+        sigmaProp(validSessionEndProblemMessageTx)
 
     } else {
         sigmaProp(false)
