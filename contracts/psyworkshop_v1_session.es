@@ -15,6 +15,7 @@
     // R4: Int                              sessionStartTimeBlockHeight // TODO: Ask about session length or session end time.
     // R5: (SigmaProp, Boolean)            (clientAddressSigmaProp, isPresent)
     // R6: (SigmaProp, (Boolean, Boolean)) (psychologistAddressSigmaProp, (isSessionAccepted, isPresent)) 
+    // R7: Boolean                          isSessionProblem
 
     // ===== Relevant Transactions ===== //
     // 1. Accept Session Tx
@@ -65,6 +66,8 @@
     val psychologistAddressBytes: SigmaProp = psychologistSessionStatus._1
     val isSessionAccepted: Boolean = psychologistSessionStatus._2._1
     val isPsychologistPresent: Boolean = psychologistSessionStatus._2._2
+
+    val isSessionProblem: Boolean = SELF.R7[Boolean].get
 
     val sessionLength: Int = 30                 // The session lasts 60 minutes, so 30 blocks on average since there is 1 block every 2 minutes on average.
     val sesssionCancelationPeriod: Int = 720    // The cancelation period is 24hrs, thus since there is 1 block every 2 minutes on average, there are 720 blocks every 24hrs on average.
@@ -924,6 +927,12 @@
 
             }
 
+            val validNoProblemStatus: Boolean = {
+
+                (!isSessionProblem)
+
+            }   
+
             val validPsychologistBoxOut: Boolean = {
 
                 val validSessionPriceAmount: Boolean = {
@@ -1026,6 +1035,7 @@
 
             allOf(Coll(
                 validSessionPeriod,
+                validNoProblemStatus,
                 validPsychologistBoxOut,
                 validPsyworkshopFeeBoxOut,
                 validSessionTermination
@@ -1052,15 +1062,31 @@
 
             }
 
-            val validAdminControl: Boolean = {
+            val validProblemStatusUpdate: Boolean = {
 
-                (sessionBoxOut.propositionBytes == $psyworkshopAdminSigmaProp.propBytes)
+                (sessionBoxOut.R7[Boolean].get == true)
+
+            }
+
+            val validSessionRecreation: Boolean = {
+
+                allOf(Coll(
+                    (sessionBoxOut.value == SELF.value),
+                    (sessionBoxOut.propositionBytes == SELF.propositionBytes),
+                    (sessionBoxOut.tokens(0) == SELF.tokens(0)),
+                    (sessionBoxOut.tokens(1) == SELF.tokens(1)),
+                    (sessionBoxOut.tokens(2) == SELF.tokens(2))
+                    (sessionBoxOut.R4[Int].get == SELF.R4[Int].get),
+                    (sessionBoxOut.R5[(SigmaProp, Boolean)].get == SELF.R5[(SigmaProp, Boolean)].get),
+                    (sessionBoxOut.R6[(SigmaProp, (Boolean, Boolean))].get == SELF.R6[(SigmaProp, (Boolean, Boolean))].get)
+                ))
 
             }
 
             allOf(Coll(
                 validSessionPeriod,
-                validAdminControl
+                validProblemStatusUpdate,
+                validSessionRecreation
             ))
 
         }
