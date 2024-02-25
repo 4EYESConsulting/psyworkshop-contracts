@@ -83,7 +83,7 @@
         val validAcceptSessionTx: Boolean = {
 
             // Inputs
-            val psychologistBoxIn: Box = INPUTS(1)
+            val psychologistPKBoxIn: Box = INPUTS(1)
 
             // Outputs
             val sessionBoxOut: Box = OUTPUTS(0)
@@ -92,7 +92,7 @@
     
                 val validRegistrationToken: Boolean = { 
 
-                    psychologistBoxIn.tokens.exists( (token: (Coll[Byte], Long)) => {
+                    psychologistPKBoxIn.tokens.exists( (token: (Coll[Byte], Long)) => {
 
                         (token._1 == $psyworkshopRegistrationTokenId)
 
@@ -106,7 +106,7 @@
 
                     allOf(Coll(
                         (outStatus._1 != $psyworkshopAdminSigmaProp),
-                        (outStatus._1.propBytes == psychologistBoxIn.propositionBytes),
+                        (outStatus._1.propBytes == psychologistPKBoxIn.propositionBytes),
                         (outStatus._2 == (true, false))
                     ))
 
@@ -171,7 +171,7 @@
         val validCancelSessionTx: Boolean = {
 
             // Inputs
-            val psychologistBox: Box = INPUTS(1)
+            val psychologistPKBoxIn: Box = INPUTS(1)
 
             // Outputs
             val clientPKBoxOut: Box = OUTPUTS(0)
@@ -188,7 +188,7 @@
 
                 val validRegistrationToken: Boolean = { 
 
-                    psychologistBoxIn.tokens.exists( (token: (Coll[Byte], Long)) => {
+                    psychologistPKBoxIn.tokens.exists( (token: (Coll[Byte], Long)) => {
 
                         (token._1 == $psyworkshopRegistrationTokenId)
 
@@ -200,7 +200,7 @@
 
                     val validAddressBytes: Boolean = {
 
-                        (psychologistBoxIn.propositionBytes == psychologistAddressSigmaProp.propBytes)
+                        (psychologistPKBoxIn.propositionBytes == psychologistAddressSigmaProp.propBytes)
 
                     }
 
