@@ -1044,7 +1044,24 @@
             val clientPKBoxIn: Box = INPUTS(1)
 
             // Outputs
-            
+            val sessionBoxOut: Box = OUTPUTS(0)
+
+            val validSessionPeriod: Boolean = {
+
+                (CONTEXT.HEIGHT >= sessionStartTimeBlockHeight + sessionLength)
+
+            }
+
+            val validAdminControl: Boolean = {
+
+                (sessionBoxOut.propositionBytes == $psyworkshopAdminSigmaProp.propBytes)
+
+            }
+
+            allOf(Coll(
+                validSessionPeriod,
+                validAdminControl
+            ))
 
         }
 
