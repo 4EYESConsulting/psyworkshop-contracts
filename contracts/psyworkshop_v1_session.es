@@ -38,15 +38,16 @@
     // _txType: Byte
 
     // ===== Tx Type Bytes ===== //
-    // 1: Accept Session Tx
-    // 2: Cancel Session Tx
-    // 3: Unaccepted Session Tx
-    // 4: Session Start: Client Confirmation Tx
-    // 5: Session Start: Psychologist Confirmation Tx
-    // 6: Session Start: Psychologist Not Present Tx
-    // 7: Session Start: Client Not Present Tx
-    // 8: Session End: No Problem Message
-    // 9: Session End: Problem Message
+    //  1: Accept Session Tx
+    //  2: Cancel Session Tx
+    //  3: Unaccepted Session Tx
+    //  4: Session Start: Client Confirmation Tx
+    //  5: Session Start: Psychologist Confirmation Tx
+    //  6: Session Start: Psychologist Not Present Tx
+    //  7: Session Start: Client Not Present Tx
+    //  8: Session End: No Problem Message Tx
+    //  9: Session End: Problem Message Tx
+    // 10: Session End: Problem Message - Option 1 Tx
 
     // ===== Relevant Variables ===== //
     val _txType: Option[Byte] = getVar[Byte](0)
@@ -241,7 +242,7 @@
 
                 val validClientRefundAmount: Boolean = {
                     
-                    (clientPKBoxOut.tokens == (sessionPriceTokenId, sessionPrice))
+                    (clientPKBoxOut.tokens(0) == (sessionPriceTokenId, sessionPrice))
                     
                 }
 
@@ -403,7 +404,7 @@
 
                 val validClientRefundAmount: Boolean = {
 
-                    (clientPKBoxOut.tokens == (sessionPriceTokenId, sessionPrice))
+                    (clientPKBoxOut.tokens(0) == (sessionPriceTokenId, sessionPrice))
                 
                 }
                 
@@ -1092,6 +1093,109 @@
         }
 
         sigmaProp(validSessionEndProblemMessageTx)
+
+    } else if (_txType.get == 10.toByte) {
+
+        // ===== Session End: Problem Message - Option 1 Tx ===== //
+        val validSessionEndProblemMessageOption1Tx: Boolean = {
+
+            // Inputs
+            val adminPKBoxIn: Box = INPUTS(1)
+
+            // Outputs
+            val clientPKBoxOut: Box = OUTPUTS(0)
+            val psychologistPKBoxOut: Box = OUTPUTS(1)
+
+            val validSessionProblem: Boolean = {
+
+                (isSessionProblem)
+
+            }
+
+            val validClientRefundBoxOut: Boolean = {
+
+                val validClientRefundAddressBytes: Boolean = {
+                    
+                    (clientPKBoxOut.propositionBytes == clientAddressSigmaProp.propBytes)
+                
+                }
+
+                val validClientRefundAmount: Boolean = {
+                    
+                    (clientPKBoxOut.tokens(0) == SELF.tokens(1))
+                    
+                }
+
+                allOf(Coll(
+                    validClientRefundAmount,
+                    validClientRefundAddressBytes
+                ))
+
+            }
+
+            val validPsychologistRefundBoxOut: Boolean = {
+
+                val validPsychologistRefundAddressBytes: Boolean = {
+                    
+                    allOf(Coll(
+                        ($psyworkshopAdminSigmaProp.propositionBytes != psychologistAddressSigmaProp.propBytes),
+                        (clientPKBoxOut.propositionBytes == psychologistAddressSigmaProp.propBytes)
+                    ))    
+                
+                }
+
+                val validPsychologistRefundAmount: Boolean = {
+                    
+                    (psychologistPKBoxOut.tokens(0) == SELF.tokens(2))
+                    
+                }
+
+                allOf(Coll(
+                    validPsychologistRefundAddressBytes,
+                    validPsychologistRefundAmount
+                ))
+
+            }
+
+            val validSessionTermination: Boolean = {
+
+                OUTPUTS.forall( (output: Box) => {
+
+                    val validSingletonBurn: Boolean = {
+
+                        output.tokens.forall( (token: (Coll[Byte], Long)) => { 
+                            
+                            (token._1 != $psyworkshopRegistrationTokenId) 
+                        
+                        })                        
+
+                    }
+
+                    val validSessionBoxDestruction: Boolean = {
+
+                        (output.propositionBytes != SELF.propositionBytes)
+
+                    }
+
+                    allOf(Coll(
+                        validSingletonBurn,
+                        validSessionBoxDestruction
+                    ))
+
+                })
+
+            }
+
+            allOf(Coll(
+                validSessionProblem,
+                validClientRefundBoxOut,
+                validPsychologistRefundBoxOut,
+                validSessionTermination
+            ))
+
+        }
+
+        sigmaProp(validSessionEndProblemMessageOption1Tx)
 
     } else {
         sigmaProp(false)
