@@ -132,24 +132,21 @@
 
             val validCollateralTransfer: Boolean = {
 
-                val collateral: Long = sessionBoxOut.tokens(2)
+                val outTotalValue: Long = sessionBoxOut.tokens(1)._2
 
-                val validSigUSD: Boolean = {
-                    
-                    (collateral._1 == sessionPriceTokenId)
-                    
-                }
+                val outCollateral: Long = sessionBoxOut.R9[Long].get
 
                 val validCollateral: Boolean = {
                     
-                    (collateral._2 >= (10L * sessionPrice) / 100L)
+                    allOf(Coll(
+                        (outCollateral > 0),
+                        (outCollateral == (10L * sessionPrice) / 100L), 
+                        (outTotalValue == sessionPrice + outCollateral)
+                    ))
                     
                 }
 
-                allOf(Coll(
-                    validSigUSD,
-                    validCollateral
-                ))
+                validCollateral
 
             }
 
@@ -159,9 +156,10 @@
                     (sessionBoxOut.value == SELF.value),
                     (sessionBoxOut.propositionBytes == SELF.propositionBytes),
                     (sessionBoxOut.tokens(0) == (sessionSingletonId, 1L)),
-                    (sessionBoxOut.tokens(1) == (sessionPriceTokenId, sessionPrice)),
+                    (sessionBoxOut.tokens(1)._1 == sessionPriceTokenId),
                     (sessionBoxOut.R4[Int].get == sessionStartTimeBlockHeight),
-                    (sessionBoxOut.R5[(SigmaProp, Boolean)].get == (clientAddressSigmaProp, false))
+                    (sessionBoxOut.R5[SigmaProp].get == clientAddressSigmaProp),
+                    (sessionBoxOut.R8[Long].get == sessionPrice)
                 ))
 
             }
@@ -174,7 +172,7 @@
 
         }
 
-        sigmaProp(validAcceptSessionTx) && $psyworkshopAdminSigmaProp
+        sigmaProp(validAcceptSessionTx) && psychologistAddressSigmaProp
 
     } else if (_txType.get == 2.toByte) {
 
