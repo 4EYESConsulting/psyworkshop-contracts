@@ -12,10 +12,22 @@
     // 2. (SigUSDId, SessionPrice)
     // 3. (SigUSDId, Collateral) // If provided by the psychologist. // TODO: All of this will be in one index, not split into two, fix where used in the contract.
     // Registers
-    // R4: Int                              sessionStartTimeBlockHeight // TODO: Ask about session length or session end time.
+    // R4: Int                              sessionStartTimeBlockHeight
     // R5: (SigmaProp, Boolean)            (clientAddressSigmaProp, isPresent)
     // R6: (SigmaProp, (Boolean, Boolean)) (psychologistAddressSigmaProp, (isSessionAccepted, isPresent)) 
     // R7: Boolean                          isSessionProblem
+
+    // ===== Box Contents ===== // (new)
+    // Tokens
+    // 1. (SessionSingletonId, 1)
+    // 2. (SigUSDId, SessionPrice + Collateral) // If provided by the psychologist.
+    // Registers
+    // R4: Int                              sessionStartTimeBlockHeight
+    // R5: SigmaProp                        clientAddressSigmaProp
+    // R6: SigmaProp                        pyschologistAddressSigmaProp
+    // R7: (Boolean, Boolean)               (isSessionAccepted, isSessionProblem) // Both false initially.
+    // R8: Long                             sessionPrice
+    // R9: Long                             collateral  // Assume 0 initially. 
 
     // ===== Relevant Transactions ===== //
     // 1. Accept Session Tx
@@ -41,49 +53,39 @@
     //  1: Accept Session Tx
     //  2: Cancel Session Tx
     //  3: Unaccepted Session Tx
-    //  4: Session Start: Client Confirmation Tx
-    //  5: Session Start: Psychologist Confirmation Tx
-    //  6: Session Start: Psychologist Not Present Tx
-    //  7: Session Start: Client Not Present Tx
-    //  8: Session Start: Client And Psychologist Not Present Tx
-    //  9: Session End: No Problem Message Tx
+    //  4: Session Start: Client Confirmation Tx // TODO: Remove
+    //  5: Session Start: Psychologist Confirmation Tx // TODO: Remove
+    //  6: Session Start: Psychologist Not Present Tx // TODO: Remove
+    //  7: Session Start: Client Not Present Tx // TODO: Remove
+    //  8: Session Start: Client And Psychologist Not Present Tx // TODO: Remove
+    //  9: Session End: No Problem Message Tx // TODO: Let pyschologist pay themselves after 15 minute delay to give client change to complain if needed.
     // 10: Session End: Problem Message Tx
     // 11: Session End: Problem Message - Option 1 Tx
     // 12: Session End: Problem Message - Option 2 Tx
+    // TODO: Add third option for Session End: Problem Message
 
     // ===== Relevant Variables ===== //
     val _txType: Option[Byte] = getVar[Byte](0)
 
     val sessionSingletonId: Coll[Byte] = SELF.tokens(0)._1
-    
-    val sessionPriceTokenId: Coll[Byte] = SELF.tokens(1)._1
-    val sessionPrice: Long = SELF.tokens(1)._2
-
+    val priceTokenId: Coll[Byte] = SELF.tokens(1)._1
+    val totalValue: Long = SELF.tokens(1)._2
     val sessionStartTimeBlockHeight: Int = SELF.R4[Int].get
-    
-    val clientSessionStatus: (SigmaProp, Boolean) = SELF.R5[(SigmaProp, Boolean)].get
-    val clientAddressSigmaProp: SigmaProp = clientSessionStatus._1
-    val isClientPresent: Boolean = clientSessionStatus._2
-    
-    val psychologistSessionStatus: (SigmaProp, (Boolean, Boolean)) = SELF.R6[(SigmaProp, (Boolean, Boolean))].get
-    val psychologistAddressBytes: SigmaProp = psychologistSessionStatus._1
-    val isSessionAccepted: Boolean = psychologistSessionStatus._2._1
-    val isPsychologistPresent: Boolean = psychologistSessionStatus._2._2
-
-    val isSessionProblem: Boolean = SELF.R7[Boolean].get
+    val clientAddressSigmaProp: SigmaProp = SELF.R5[SigmaProp].get    
+    val psychologistAddressSigmaProp: SigmaProp = SELF.R6[SigmaProp].get
+    val sessionStatus: (Boolean, Boolean) = SELF.R7[(Boolean, Boolean)].get
+    val isSessionAccepted: Boolean = sessionStatus._1
+    val isSessionProblem: Boolean = sessionStatus._2
+    val sessionPrice: Long = SELF.R8[Long].get
+    val collateral: Long = SELF.R9[Long].get
 
     val sessionLength: Int = 30                 // The session lasts 60 minutes, so 30 blocks on average since there is 1 block every 2 minutes on average.
     val sesssionCancelationPeriod: Int = 720    // The cancelation period is 24hrs, thus since there is 1 block every 2 minutes on average, there are 720 blocks every 24hrs on average.
     val sessionUnacceptedPeriod: Int = 60       // If no psychologist accepts the session within 2hrs of the session start time, thus since there is 1 block every 2 minutes on average, there are 60 blocks every 2hrs on average.
-    val fiveMinutes: Int = 3                    // 1 block every 2 minutes on average, so 2.5 blocks every 5 minutes on average, so we round up.
-    val tenMinutes: Int = 5                     // 1 block every 2 minutes on average, so 5 blocks every 10 minutes on average.
     val fifteenMinutes: Int = 8                 // 1 block every 2 minutes on average, so 7.5 blocks every 15 minutes on average, so we round up.
-    val twentyMinutes: Int = 10                 // 1 block every 2 minutes on average, so 10 blocks every 20 minutes on average.
 
-    val isFiveMinutesLate: Boolean = (CONTEXT.HEIGHT - sessionStartTimeBlockHeight >= fiveMinutes)
-    val isTenMinutesLate: Boolean = (CONTEXT.HEIGHT - sessionStartTimeBlockHeight >= tenMinutes)
-    val isFifteenMinutesLate: Boolean = (CONTEXT.HEIGHT - sessionStartTimeBlockHeight >= fifteenMinutes)
-    val isPsychologistLate: Boolean = isFiveMinutesLate
+    val isSessionOver: Boolean = (CONTEXT.HEIGHT >= sessionStartTimeBlockHeight + sessionLength)
+    val isSessionComplaintTimeOver: Boolean = (CONTEXT.HEIGHT >= sessionStartTimeBlockHeight + sessionLength + fifteenMinutes)
 
     if (_txType.get == 1.toByte) {
 
@@ -110,12 +112,13 @@
 
                 val validSessionStatusUpdate: Boolean = {
 
-                    val outStatus: (SigmaProp, (Boolean, Boolean)) = sessionBoxOut.R6[(SigmaProp, (Boolean, Boolean))].get
+                    val outPsychologistAddress: SigmaProp = sessionBoxOut.R6[SigmaProp].get
+                    val outStatus: (Boolean, Boolean) = sessionBoxOut.R7[(Boolean, Boolean)].get
 
                     allOf(Coll(
-                        (outStatus._1 != $psyworkshopAdminSigmaProp),
-                        (outStatus._1.propBytes == psychologistPKBoxIn.propositionBytes),
-                        (outStatus._2 == (true, false))
+                        (outPsychologistAddress !=  $psyworkshopAdminSigmaProp),
+                        (outPsychologistAddress.propBytes == psychologistPKBoxIn.propositionBytes),
+                        (outStatus == (true, false))
                     ))
 
                 }
