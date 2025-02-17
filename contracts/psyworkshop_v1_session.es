@@ -65,7 +65,7 @@
 
     // ===== Functions ===== //
     // def validRegistrationToken: Box => Boolean
-    // def validSessionTermination: _ => Boolean
+    // def validSessionTermination: () => Boolean
     
     def validRegistrationToken(input: Box): Boolean = { 
 
