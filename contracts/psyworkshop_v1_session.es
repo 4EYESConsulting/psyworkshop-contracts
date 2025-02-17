@@ -42,6 +42,9 @@
     // Context Variables: TxType
 
     // ===== Compile Time Constants ($) ===== //
+    // $psyworkshopRegistrationTokenId: Coll[Byte]
+    // $psyworkshopFeeAddressBytes: Coll[Byte]
+    // $psyworkshopAdminSigmaProp: SigmaProp
     val $psyworkshopRegistrationTokenId: Coll[Byte] = fromBase16("2c89e1e137d05659e45018fd6412da19c687b4101f241b6014c7cd5321897b1e")
     val $psyworkshopFeeAddressBytes: Coll[Byte] = fromBase16("2c89e1e137d05659e45018fd6412da19c687b4101f241b6014c7cd5321897b1e")
     val $psyworkshopAdminSigmaProp: SigmaProp = PK("9fzRcctiWfzoJyqGtPWqoXPuxSmFw6zpnjtsQ1B6jSN514XqH4q")
@@ -50,19 +53,58 @@
     // _txType: Byte
 
     // ===== Tx Type Bytes ===== //
-    //  1: Accept Session Tx
-    //  2: Cancel Session Tx
-    //  3: Unaccepted Session Tx
-    //  4: Session Start: Client Confirmation Tx // TODO: Remove
-    //  5: Session Start: Psychologist Confirmation Tx // TODO: Remove
-    //  6: Session Start: Psychologist Not Present Tx // TODO: Remove
-    //  7: Session Start: Client Not Present Tx // TODO: Remove
-    //  8: Session Start: Client And Psychologist Not Present Tx // TODO: Remove
-    //  9: Session End: No Problem Message Tx // TODO: Let pyschologist pay themselves after 15 minute delay to give client change to complain if needed.
-    // 10: Session End: Problem Message Tx
-    // 11: Session End: Problem Message - Option 1 Tx
-    // 12: Session End: Problem Message - Option 2 Tx
-    // TODO: Add third option for Session End: Problem Message
+    // 1: Accept Session Tx
+    // 2: Cancel Session Tx: Psychologist
+    // 3: Cancel Session Tx: Client
+    // 4: Unaccepted Session Tx
+    // 5: Session End Tx: No Problem // TODO: Let pyschologist pay themselves after 15 minute delay to give client change to complain if needed.
+    // 6: Session End Tx: Problem
+    // 7: Session End Tx: Psychologist Bad
+    // 8: Session End Tx: Client Bad
+    // 9: Session End Tx: Psyworkshop Bad
+
+    // ===== Functions ===== //
+    // def validRegistrationToken: Box => Boolean
+    // def validSessionTermination: _ => Boolean
+    
+    def validRegistrationToken(input: Box): Boolean = { 
+
+        input.tokens.exists({ (token: (Coll[Byte], Long)) => {
+
+            (token._1 == $psyworkshopRegistrationTokenId)
+
+        }})
+
+    }
+
+    def validSessionTermination(): Boolean = {
+
+        OUTPUTS.forall({ (output: Box) => {
+
+            val validSingletonBurn: Boolean = {
+
+                output.tokens.forall({ (token: (Coll[Byte], Long)) => { 
+                    
+                    (token._1 != $psyworkshopRegistrationTokenId) 
+                
+                }})                        
+
+            }
+
+            val validSessionBoxDestruction: Boolean = {
+
+                (output.propositionBytes != SELF.propositionBytes)
+
+            }
+
+            allOf(Coll(
+                validSingletonBurn,
+                validSessionBoxDestruction
+            ))
+
+        }})
+
+    }
 
     // ===== Relevant Variables ===== //
     val _txType: Option[Byte] = getVar[Byte](0)
@@ -80,12 +122,13 @@
     val collateral: Long = SELF.R9[Long].get
 
     val sessionLength: Int = 30                 // The session lasts 60 minutes, so 30 blocks on average since there is 1 block every 2 minutes on average.
-    val sesssionCancelationPeriod: Int = 720    // The cancelation period is 24hrs, thus since there is 1 block every 2 minutes on average, there are 720 blocks every 24hrs on average.
+    val sessionCancelationPeriod: Int = 720    // The cancelation period is 24hrs, thus since there is 1 block every 2 minutes on average, there are 720 blocks every 24hrs on average.
     val sessionUnacceptedPeriod: Int = 60       // If no psychologist accepts the session within 2hrs of the session start time, thus since there is 1 block every 2 minutes on average, there are 60 blocks every 2hrs on average.
     val fifteenMinutes: Int = 8                 // 1 block every 2 minutes on average, so 7.5 blocks every 15 minutes on average, so we round up.
 
     val isSessionOver: Boolean = (CONTEXT.HEIGHT >= sessionStartTimeBlockHeight + sessionLength)
     val isSessionComplaintTimeOver: Boolean = (CONTEXT.HEIGHT >= sessionStartTimeBlockHeight + sessionLength + fifteenMinutes)
+    val isSessionCanceled: Boolean = (sessionStartTimeBlockHeight - CONTEXT.HEIGHT >= sessionCancelationPeriod)
 
     if (_txType.get == 1.toByte) {
 
@@ -99,16 +142,6 @@
             val sessionBoxOut: Box = OUTPUTS(0)
 
             val validPsychologistRegistration: Boolean = {
-
-                val validRegistrationToken: Boolean = { 
-
-                    psychologistPKBoxIn.tokens.exists({ (token: (Coll[Byte], Long)) => {
-
-                        (token._1 == $psyworkshopRegistrationTokenId)
-
-                    }})
-
-                }
 
                 val validSessionStatusUpdate: Boolean = {
 
@@ -124,7 +157,7 @@
                 }
 
                 allOf(Coll(
-                    validRegistrationToken,
+                    validRegistrationToken(psychologistPKBoxIn),
                     validSessionStatusUpdate
                 ))
 
@@ -135,19 +168,13 @@
                 val outTotalValue: Long = sessionBoxOut.tokens(1)._2
 
                 val outCollateral: Long = sessionBoxOut.R9[Long].get
-
-                val validCollateral: Boolean = {
                     
-                    allOf(Coll(
-                        (outCollateral > 0),
-                        (outCollateral == (10L * sessionPrice) / 100L), 
-                        (outTotalValue == sessionPrice + outCollateral)
-                    ))
+                allOf(Coll(
+                    (outCollateral > 0),
+                    (outCollateral == (10L * sessionPrice) / 100L), 
+                    (outTotalValue == sessionPrice + outCollateral)
+                ))
                     
-                }
-
-                validCollateral
-
             }
 
             val validSessionRecreation: Boolean = {
@@ -176,7 +203,7 @@
 
     } else if (_txType.get == 2.toByte) {
 
-        // ===== Cancel Session Tx ===== //
+        // ===== Cancel Session Tx: Psychologist ===== //
         val validCancelSessionTx: Boolean = {
 
             // Inputs
@@ -189,69 +216,26 @@
             val psychologistPKBoxOut: Box = OUTPUTS(1)
             val psyworkshopFeeBoxOut: Box = OUTPUTS(2)
 
-            val validCancelationPeriod: Boolean = {
-                
-                (sessionStartTimeBlockHeight - CONTEXT.HEIGHT >= sesssionCancelationPeriod)
-                
-            }
-
             val validPsychologist: Boolean = {
 
-                val validRegistrationToken: Boolean = { 
-
-                    psychologistPKBoxIn.tokens.exists({ (token: (Coll[Byte], Long)) => {
-
-                        (token._1 == $psyworkshopRegistrationTokenId)
-
-                    }})
-
-                }
-
-                val validSession: Boolean = {
-
-                    val validAddressBytes: Boolean = {
-
-                        (psychologistPKBoxIn.propositionBytes == $psyworkshopAdminSigmaProp.propBytes)
-
-                    }
-
-                    val validAcceptedSession: Boolean = {
-
-                        (isSessionAccepted)
-
-                    }
-
-                    allOf(Coll(
-                        validAddressBytes,
-                        validAcceptedSession
-                    ))
-
-                }
+                val validAddressBytes: Boolean = (psychologistPKBoxIn.propositionBytes == psychologistAddressSigmaProp.propBytes)
 
                 allOf(Coll(
-                    validRegistrationToken,
-                    validSession
+                    validRegistrationToken(psychologistPKBoxIn),
+                    validAddressBytes
                 ))
 
             }
 
             val validClientRefundBoxOut: Boolean = {
 
-                val validClientRefundAddressBytes: Boolean = {
-                    
-                    (clientPKBoxOut.propositionBytes == clientAddressSigmaProp.propBytes)
-                
-                }
+                val validClientRefundAddressBytes: Boolean = (clientPKBoxOut.propositionBytes == clientAddressSigmaProp.propBytes)
 
-                val validClientRefundAmount: Boolean = {
-                    
-                    (clientPKBoxOut.tokens(0) == (sessionPriceTokenId, sessionPrice))
-                    
-                }
+                val validClientRefundAmount: Boolean = (clientPKBoxOut.tokens(0) == (sessionPriceTokenId, sessionPrice))
 
                 allOf(Coll(
-                    validClientRefundAmount,
-                    validClientRefundAddressBytes
+                    validClientRefundAddressBytes,
+                    validClientRefundAmount
                 ))
 
             }
@@ -262,102 +246,61 @@
                 val validCollateralAmount: Boolean = {
 
                     allOf(Coll(
-                        (psychologistPKBoxOut.tokens(0)._1 == SELF.tokens(2)._1),
-                        (psychologistPKBoxOut.tokens(0)._2 == SELF.tokens(2)._2 / 2)
+                        (psychologistPKBoxOut.tokens(0)._1 == sessionPriceTokenId),
+                        (psychologistPKBoxOut.tokens(0)._2 == collateral / 2)
                     ))
 
                 }
 
-                val validPsychologistAddressBytes: Boolean = {
-                    // TODO: psychologistAddressSigmaProp doesnt exist?
-                    true
-                    // allOf(Coll(
-                    //     (psychologistAddressSigmaProp != $psyworkshopAdminSigmaProp),
-                    //     (psychologistPKBoxOut.propositionBytes == psychologistAddressSigmaProp.propBytes)
-                    // ))
-                    
-                }
+                val validPsychologistAddressBytes: Boolean = (psychologistPKBoxOut.propositionBytes == psychologistAddressSigmaProp.propBytes)
 
                 allOf(Coll(
-                    validCollateralAmount,
-                    validPsychologistAddressBytes
+                    validPsychologistAddressBytes,
+                    validCollateralAmount
                 ))
 
             }
 
             val validPsyworkshopFeeBoxOut: Boolean = {
 
-                val validValue: Boolean = {
-                    
-                    (psyworkshopFeeBoxOut.value == SELF.value)
-                    
-                }
-
+                val validValue: Boolean = (psyworkshopFeeBoxOut.value == SELF.value)
+                
                 // The fee is 50% of the collateral provided by the psychologist.
                 val validFeeAmount: Boolean = {
 
+                    val collateralAmount = SELF.tokens(1)._2 - sessionPrice
+                    val remainder = collateralAmount - (collateral / 2)
+
                     allOf(Coll(
-                        (psyworkshopFeeBoxOut.tokens(0)._1 == SELF.tokens(2)._1),
-                        (psyworkshopFeeBoxOut.tokens(0)._2 == SELF.tokens(2)._2 / 2)
+                        (psyworkshopFeeBoxOut.tokens(0)._1 == sessionPriceTokenId),
+                        (psyworkshopFeeBoxOut.tokens(0)._2 == remainder)
                     ))
 
                 }
 
-                val validFeeAddressBytes: Boolean = {
+                val validFeeAddressBytes: Boolean = (psyworkshopFeeBoxOut.propositionBytes == $psyworkshopFeeAddressBytes)
                     
-                    (psyworkshopFeeBoxOut.propositionBytes == $psyworkshopFeeAddressBytes)
-                    
-                }
-
                 allOf(Coll(
                     validValue,
-                    validFeeAmount,
-                    validFeeAddressBytes
+                    validFeeAddressBytes,
+                    validFeeAmount
                 ))
 
             }
 
-            val validSessionTermination: Boolean = {
-
-                OUTPUTS.forall({ (output: Box) => {
-
-                    val validSingletonBurn: Boolean = {
-
-                        output.tokens.forall({ (token: (Coll[Byte], Long)) => { 
-                            
-                            (token._1 != $psyworkshopRegistrationTokenId) 
-                        
-                        }})                        
-
-                    }
-
-                    val validSessionBoxDestruction: Boolean = {
-
-                        (output.propositionBytes != SELF.propositionBytes)
-
-                    }
-
-                    allOf(Coll(
-                        validSingletonBurn,
-                        validSessionBoxDestruction
-                    ))
-
-                }})
-
-            }
-
             allOf(Coll(
-                validCancelationPeriod,
+                isSessionAccepted,
+                isSessionCanceled,
                 validPsychologist,
                 validClientRefundBoxOut,
                 validPsychologistPKBoxOut,
                 validPsyworkshopFeeBoxOut,
-                validSessionTermination
+                validSessionTermination()
             ))
 
         }
 
-        sigmaProp(validCancelSessionTx) && $psyworkshopAdminSigmaProp
+        sigmaProp(validCancelSessionTx) && $psychologistAddressSigmaProp
 
     } else if (_txType.get == 3.toByte) {
 
