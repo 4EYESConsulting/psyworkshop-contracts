@@ -57,12 +57,12 @@
     // 2: Cancel Session Tx: Psychologist
     // 3: Cancel Session Tx: Client
     // 4: Refund Tx: Client => Only possible if session is not accepted.
-    // 4: Unaccepted Session Tx
-    // 5: Session End Tx: No Problem // TODO: Let pyschologist pay themselves after 15 minute delay to give client change to complain if needed.
-    // 6: Session End Tx: Problem
-    // 7: Session End Tx: Psychologist Bad
-    // 8: Session End Tx: Client Bad
-    // 9: Session End Tx: Psyworkshop Bad
+    // 5: Unaccepted Session Tx
+    // 6: Session End Tx: No Problem // TODO: Let pyschologist pay themselves after 15 minute delay to give client change to complain if needed.
+    // 7: Session End Tx: Problem
+    // 8: Session End Tx: Psychologist Bad
+    // 9: Session End Tx: Client Bad
+    // 10: Session End Tx: Psyworkshop Bad
 
     // ===== Functions ===== //
     // def validRegistrationToken: Box => Boolean
@@ -388,7 +388,7 @@
 
             }
 
-            val validFeeBoxesOut: Boolean = {
+            val validFeeBoxOut: Boolean = {
 
                 if (isClientSessionCancelTimePenalty) {
 
@@ -431,7 +431,44 @@
 
         sigmaProp(validCancelSessionClientTx) && clientAddressSigmaProp
 
-    } else if (_txType.get == 3) {
+    } else if (_txType.get == 4) {
+
+        // ===== Refund Tx: Client ===== //
+        val validClientRefundTx: Boolean = {
+
+            // Inputs
+            val clientPKBoxIn: Box = INPUTS(1)
+
+            // Outputs
+            val clientPKBoxOut: Box = OUTPUTS(0)
+
+            val validClient: Boolean = (clientPKBoxIn.propositionBytes == psychologistAddressSigmaProp.propBytes)
+
+            val validClientRefundBoxOut: Boolean = {
+
+                val validClientRefundAddressBytes: Boolean = (clientPKBoxOut.propositionBytes == clientAddressSigmaProp.propBytes)
+
+                val validClientRefundAmount: Boolean = (clientPKBoxOut.tokens(0) == (sessionPriceTokenId, sessionPrice))
+
+                allOf(Coll(
+                    validClientRefundAddressBytes,
+                    validClientRefundAmount
+                ))
+
+            }
+
+            allOf(Coll(
+                !isSessionAccepted,
+                validClient,
+                validClientRefundBoxOut,
+                validSessionTermination()
+            ))            
+
+        }
+
+        sigmaProp(validClientRefundTx) && clientAddressSigmaProp
+
+    } else if (_txType.get == 5) {
 
         // ===== Unaccepted Session Tx ===== //
         val validUnacceptedSession: Boolean = {
