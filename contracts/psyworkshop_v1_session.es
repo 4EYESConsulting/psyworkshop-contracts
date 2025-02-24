@@ -50,12 +50,13 @@
     val $psyworkshopAdminSigmaProp: SigmaProp = PK("9fzRcctiWfzoJyqGtPWqoXPuxSmFw6zpnjtsQ1B6jSN514XqH4q")
 
     // ===== Context Variables (_) ===== //
-    // _txType: Byte
+    // _txType: Int
 
     // ===== Tx Type Bytes ===== //
     // 1: Accept Session Tx
     // 2: Cancel Session Tx: Psychologist
     // 3: Cancel Session Tx: Client
+    // 4: Refund Tx: Client => Only possible if session is not accepted.
     // 4: Unaccepted Session Tx
     // 5: Session End Tx: No Problem // TODO: Let pyschologist pay themselves after 15 minute delay to give client change to complain if needed.
     // 6: Session End Tx: Problem
@@ -85,9 +86,9 @@
 
                 output.tokens.forall({ (token: (Coll[Byte], Long)) => { 
                     
-                    (token._1 != $psyworkshopRegistrationTokenId) 
+                    (token._1 != sessionSingletonId) 
                 
-                }})                        
+                }})                
 
             }
 
@@ -107,7 +108,7 @@
     }
 
     // ===== Relevant Variables ===== //
-    val _txType: Option[Byte] = getVar[Byte](0)
+    val _txType: Option[Int] = getVar[Int](0)
 
     val sessionSingletonId: Coll[Byte] = SELF.tokens(0)._1
     val priceTokenId: Coll[Byte] = SELF.tokens(1)._1
@@ -121,16 +122,19 @@
     val sessionPrice: Long = SELF.R8[Long].get
     val collateral: Long = SELF.R9[Long].get
 
-    val sessionLength: Int = 30                 // The session lasts 60 minutes, so 30 blocks on average since there is 1 block every 2 minutes on average.
-    val sessionCancelationPeriod: Int = 720    // The cancelation period is 24hrs, thus since there is 1 block every 2 minutes on average, there are 720 blocks every 24hrs on average.
-    val sessionUnacceptedPeriod: Int = 60       // If no psychologist accepts the session within 2hrs of the session start time, thus since there is 1 block every 2 minutes on average, there are 60 blocks every 2hrs on average.
-    val fifteenMinutes: Int = 8                 // 1 block every 2 minutes on average, so 7.5 blocks every 15 minutes on average, so we round up.
+    val sessionLength: Int = 30                         // The session lasts 60 minutes, so 30 blocks on average since there is 1 block every 2 minutes on average.
+    val clientSessionCancelationPeriod: Int = 720       // The client cancelation period is 24hrs, thus since there is 1 block every 2 minutes on average, there are 720 blocks every 24hrs on average.
+    val psychologistSessionCancelationPeriod: Int = 60  // The psychologist cancelation period is 2hrs, thus since there is 1 block every 2 minutes on average, there are 60 blocks every 2hrs on average.
+    val sessionUnacceptedPeriod: Int = 60               // If no psychologist accepts the session within 2hrs of the session start time, thus since there is 1 block every 2 minutes on average, there are 60 blocks every 2hrs on average.
+    val fifteenMinutes: Int = 8                         // 1 block every 2 minutes on average, so 7.5 blocks every 15 minutes on average, so we round up.
 
     val isSessionOver: Boolean = (CONTEXT.HEIGHT >= sessionStartTimeBlockHeight + sessionLength)
     val isSessionComplaintTimeOver: Boolean = (CONTEXT.HEIGHT >= sessionStartTimeBlockHeight + sessionLength + fifteenMinutes)
-    val isSessionCanceled: Boolean = (sessionStartTimeBlockHeight - CONTEXT.HEIGHT >= sessionCancelationPeriod)
+    val isPsychologistSessionCancelTime: Boolean = (CONTEXT.HEIGHT - sessionStartTimeBlockHeight >= psychologistSessionCancelationPeriod)
+    val isClientSessionCancelTime: Boolean = (CONTEXT.HEIGHT - sessionStartTimeBlockHeight >= clientSessionCancelationPeriod)
+    val isClientSessionCancelTimePenalty: Boolean = (CONTEXT.HEIGHT - sessionStartTimeBlockHeight <= clientSessionCancelationPeriod) && (CONTEXT.HEIGHT - sessionStartTimeBlockHeight > 0)
 
-    if (_txType.get == 1.toByte) {
+    if (_txType.get == 1) {
 
         // ===== Accept Session Tx ===== //
         val validAcceptSessionTx: Boolean = {
@@ -201,15 +205,13 @@
 
         sigmaProp(validAcceptSessionTx) && psychologistAddressSigmaProp
 
-    } else if (_txType.get == 2.toByte) {
+    } else if (_txType.get == 2) {
 
         // ===== Cancel Session Tx: Psychologist ===== //
-        val validCancelSessionTx: Boolean = {
+        val validCancelSessionPsychologistTx: Boolean = {
 
             // Inputs
             val psychologistPKBoxIn: Box = INPUTS(1)
-            // TODO FIX
-            // val psychologistPKBoxIn: Box = INPUTS(1)
 
             // Outputs
             val clientPKBoxOut: Box = OUTPUTS(0)
@@ -242,6 +244,8 @@
 
             val validPsychologistPKBoxOut: Boolean = {
 
+                val validPsychologistAddressBytes: Boolean = (psychologistPKBoxOut.propositionBytes == psychologistAddressSigmaProp.propBytes)
+
                 // The fee is 50% of the collateral provided by the psychologist.
                 val validCollateralAmount: Boolean = {
 
@@ -251,8 +255,6 @@
                     ))
 
                 }
-
-                val validPsychologistAddressBytes: Boolean = (psychologistPKBoxOut.propositionBytes == psychologistAddressSigmaProp.propBytes)
 
                 allOf(Coll(
                     validPsychologistAddressBytes,
@@ -264,7 +266,9 @@
             val validPsyworkshopFeeBoxOut: Boolean = {
 
                 val validValue: Boolean = (psyworkshopFeeBoxOut.value == SELF.value)
-                
+
+                val validFeeAddressBytes: Boolean = (psyworkshopFeeBoxOut.propositionBytes == $psyworkshopFeeAddressBytes)
+
                 // The fee is 50% of the collateral provided by the psychologist.
                 val validFeeAmount: Boolean = {
 
@@ -277,8 +281,6 @@
                     ))
 
                 }
-
-                val validFeeAddressBytes: Boolean = (psyworkshopFeeBoxOut.propositionBytes == $psyworkshopFeeAddressBytes)
                     
                 allOf(Coll(
                     validValue,
@@ -290,7 +292,7 @@
 
             allOf(Coll(
                 isSessionAccepted,
-                isSessionCanceled,
+                isPsychologistSessionCancelTime,
                 validPsychologist,
                 validClientRefundBoxOut,
                 validPsychologistPKBoxOut,
@@ -300,14 +302,142 @@
 
         }
 
-        sigmaProp(validCancelSessionTx) && $psychologistAddressSigmaProp
+        sigmaProp(validCancelSessionPsychologistTx) && psychologistAddressSigmaProp
 
-    } else if (_txType.get == 3.toByte) {
+    } else if (_txType.get == 3) {
+
+        // ===== Cancel Session Tx: Client ===== //
+        val validCancelSessionClientTx: Boolean = {
+
+            // Inputs
+            val clientPKBoxIn: Box = INPUTS(1)
+
+            // Outputs
+            val clientPKBoxOut: Box = OUTPUTS(0)
+            val psychologistPKBoxOut: Box = OUTPUTS(1)
+            val psyworkshopFeeBoxOut: Box = OUTPUTS.getOrElse(2, SELF)
+            
+            // Relevant Variables
+            val remainder = sessionPrice - (sessionPrice / 2)
+            val workshopFee = remainder / 2
+            val psychFee = remainder - workshopFee
+
+            val validClient: Boolean = (clientPKBoxIn.propositionBytes == psychologistAddressSigmaProp.propBytes)
+
+            val validClientRefundBoxOut: Boolean = {
+
+                val validClientRefundAddressBytes: Boolean = (clientPKBoxOut.propositionBytes == clientAddressSigmaProp.propBytes)
+
+                val validClientRefundAmount: Boolean = {
+
+                    if (isClientSessionCancelTime) {
+
+                        (clientPKBoxOut.tokens(0) == (sessionPriceTokenId, sessionPrice))
+
+                    } else if (isClientSessionCancelTimePenalty) {
+
+                        (clientPKBoxOut.tokens(0) == (sessionPriceTokenId, sessionPrice / 2))
+
+                    } else {
+                        false
+                    }
+                
+                }
+
+                allOf(Coll(
+                    validClientRefundAddressBytes,
+                    validClientRefundAmount
+                ))
+
+            }
+
+            val validPsychologistPKBoxOut: Boolean = {
+
+                val validPsychologistAddressBytes: Boolean = (psychologistPKBoxOut.propositionBytes == psychologistAddressSigmaProp.propBytes)
+
+                val validCollateralAmount: Boolean = {
+
+
+                    if (isClientSessionCancelTime) {
+
+                        // 100% of the collateral is returned.
+                        allOf(Coll(
+                            (psychologistPKBoxOut.tokens(0)._1 == sessionPriceTokenId),
+                            (psychologistPKBoxOut.tokens(0)._2 == collateral)
+                        ))
+
+
+                    } else if (isClientSessionCancelTimePenalty) {
+
+                        // 100% of the collateral is returned + 25% of the sessionPrice.
+                        allOf(Coll(
+                            (psychologistPKBoxOut.tokens(0)._1 == sessionPriceTokenId),
+                            (psychologistPKBoxOut.tokens(0)._2 == collateral + psychFee)
+                        ))
+
+                    } else {
+                        false
+                    }
+
+                }
+
+                allOf(Coll(
+                    validPsychologistAddressBytes,
+                    validCollateralAmount
+                ))
+
+            }
+
+            val validFeeBoxesOut: Boolean = {
+
+                if (isClientSessionCancelTimePenalty) {
+
+                    val validValue: Boolean = (psyworkshopFeeBoxOut.value == SELF.value)
+
+                    val validFeeAddressBytes: Boolean = (psyworkshopFeeBoxOut.propositionBytes == $psyworkshopFeeAddressBytes)
+                
+                    // The fee is 25% of the sessionPrice provided by the client, only if the penalty time is reached.
+                    val validFeeAmount: Boolean = {
+
+                        allOf(Coll(
+                            (psyworkshopFeeBoxOut.tokens(0)._1 == sessionPriceTokenId),
+                            (psyworkshopFeeBoxOut.tokens(0)._2 == workshopFee)
+                        ))
+
+                    }
+                        
+                    allOf(Coll(
+                        validValue,
+                        validFeeAddressBytes,
+                        validFeeAmount
+                    ))
+
+                } else {
+                    true
+                }
+
+            }
+
+            allOf(Coll(
+                isSessionAccepted,
+                validClient,
+                validClientRefundBoxOut,
+                validPsychologistPKBoxOut,
+                validPsyworkshopFeeBoxOut,
+                validSessionTermination()
+            ))
+
+        }
+
+        sigmaProp(validCancelSessionClientTx) && clientAddressSigmaProp
+
+    } else if (_txType.get == 3) {
 
         // ===== Unaccepted Session Tx ===== //
         val validUnacceptedSession: Boolean = {
 
             // Inputs
+
 
             // Ouptuts
             val clientPKBoxOut: Box = OUTPUTS(0)
