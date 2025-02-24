@@ -56,13 +56,12 @@
     // 1: Accept Session Tx
     // 2: Cancel Session Tx: Psychologist
     // 3: Cancel Session Tx: Client
-    // 4: Refund Tx: Client => Only possible if session is not accepted.
-    // 5: Unaccepted Session Tx
-    // 6: Session End Tx: No Problem // TODO: Let pyschologist pay themselves after 15 minute delay to give client change to complain if needed.
-    // 7: Session End Tx: Problem
-    // 8: Session End Tx: Psychologist Bad
-    // 9: Session End Tx: Client Bad
-    // 10: Session End Tx: Psyworkshop Bad
+    // 4: Refund Tx: Client
+    // 5: Session End Tx: No Problem // TODO: Let pyschologist pay themselves after 15 minute delay to give client change to complain if needed.
+    // 6: Session End Tx: Problem
+    // 7: Session End Tx: Psychologist Bad
+    // 8: Session End Tx: Client Bad
+    // 9: Session End Tx: Psyworkshop Bad
 
     // ===== Functions ===== //
     // def validRegistrationToken: Box => Boolean
@@ -468,116 +467,7 @@
 
         sigmaProp(validClientRefundTx) && clientAddressSigmaProp
 
-    } else if (_txType.get == 5) {
-
-        // ===== Unaccepted Session Tx ===== //
-        val validUnacceptedSession: Boolean = {
-
-            // Inputs
-
-
-            // Ouptuts
-            val clientPKBoxOut: Box = OUTPUTS(0)
-
-            val validUnacceptedPeriod: Boolean = {
-                
-                (sessionStartTimeBlockHeight - CONTEXT.HEIGHT <= sessionUnacceptedPeriod)
-                
-            }
-
-            val validUnacceptedSession: Boolean = {
-                
-                // No address bytes, not accepted, not present.
-                val validNoAddressBytes: Boolean = {
-
-// TODO: psychologistAddressSigmaProp doesnt exist?
-                  true
-                    // (psychologistAddressSigmaProp == $psyworkshopAdminSigmaProp)
-
-                }
-
-                val validSessionNotAccepted: Boolean = {
-
-                    (!isSessionAccepted)
-
-                }
-
-                val validPsychologistNotPresent: Boolean = {
-
-                    (!isPsychologistPresent)
-
-                }
-
-                allOf(Coll(
-                    validNoAddressBytes,
-                    validSessionNotAccepted,
-                    validPsychologistNotPresent
-                ))
-                
-            }
-
-            val validClientRefundBoxOut: Boolean = {
-
-                val validClientRefundAmount: Boolean = {
-
-                    (clientPKBoxOut.tokens(0) == (sessionPriceTokenId, sessionPrice))
-                
-                }
-                
-                val validClientRefundAddress: Boolean = {
-
-                    (clientPKBoxOut.propositionBytes == clientAddressSigmaProp.propBytes)
-
-                }
-
-                allOf(Coll(
-                    validClientRefundAmount,
-                    validClientRefundAddress
-                ))
-
-            }      
-
-            val validSessionTermination: Boolean = {
-
-                OUTPUTS.forall({ (output: Box) => {
-
-                    val validSingletonBurn: Boolean = {
-
-                        output.tokens.forall({ (token: (Coll[Byte], Long)) => { 
-                            
-                            (token._1 != $psyworkshopRegistrationTokenId) 
-                        
-                        }})                        
-
-                    }
-
-                    val validSessionBoxDestruction: Boolean = {
-
-                        (output.propositionBytes != SELF.propositionBytes)
-
-                    }
-
-                    allOf(Coll(
-                        validSingletonBurn,
-                        validSessionBoxDestruction
-                    ))
-
-                }})
-
-            }
-
-            allOf(Coll(
-                validUnacceptedPeriod,
-                validUnacceptedSession,
-                validClientRefundBoxOut,
-                validSessionTermination
-            ))
-
-        }
-
-        sigmaProp(validUnacceptedSession)
-
-    } else if (_txType.get == 4.toByte) {
+    } else if (_txType.get == 5.toByte) {
 
         // ===== Session Start: Client Confirmation Tx ===== //
         val validSessionStartClientConfirmationTx: Boolean = {
