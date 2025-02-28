@@ -127,6 +127,7 @@
     val sessionUnacceptedPeriod: Int = 60               // If no psychologist accepts the session within 2hrs of the session start time, thus since there is 1 block every 2 minutes on average, there are 60 blocks every 2hrs on average.
     val fifteenMinutes: Int = 8                         // 1 block every 2 minutes on average, so 7.5 blocks every 15 minutes on average, so we round up.
 
+    val isSessionStarted: Boolean = (CONTEXT.HEIGHT >= sessionStartTimeBlockHeight) && isSessionAccepted
     val isSessionOver: Boolean = (CONTEXT.HEIGHT >= sessionStartTimeBlockHeight + sessionLength)
     val isSessionComplaintTimeOver: Boolean = (CONTEXT.HEIGHT >= sessionStartTimeBlockHeight + sessionLength + fifteenMinutes)
     val isPsychologistSessionCancelTime: Boolean = (CONTEXT.HEIGHT - sessionStartTimeBlockHeight >= psychologistSessionCancelationPeriod)
@@ -533,6 +534,7 @@
             allOf(Coll(
                 isSessionOver,
                 isSessionComplaintTimeOver,
+                isSessionAccepted,
                 !isSessionProblem,
                 validPsychologistBoxOut,
                 validPsyworkshopFeeBoxOut,
@@ -543,7 +545,7 @@
 
         sigmaProp(validSessionEndNoProblemMessageTx) && psychologistAddressSigmaProp
 
-    } else if (_txType.get == 10.toByte) {
+    } else if (_txType.get == 6) {
 
         // ===== Session End: Problem Message Tx ===== //
         val validSessionEndProblemMessageTx: Boolean = {
@@ -554,17 +556,9 @@
             // Outputs
             val sessionBoxOut: Box = OUTPUTS(0)
 
-            val validSessionPeriod: Boolean = {
+            val validClient: Boolean = (clientPKBoxIn.propositionBytes == clientAddressSigmaProp.propBytes)
 
-                (CONTEXT.HEIGHT >= sessionStartTimeBlockHeight + sessionLength)
-
-            }
-
-            val validProblemStatusUpdate: Boolean = {
-
-                (sessionBoxOut.R7[Boolean].get == true)
-
-            }
+            val validSessionStatusUpdate: Boolean = (sessionBoxOut.R7[(Boolean, Boolean)].get._2 == true)
 
             val validSessionRecreation: Boolean = {
 
@@ -573,23 +567,27 @@
                     (sessionBoxOut.propositionBytes == SELF.propositionBytes),
                     (sessionBoxOut.tokens(0) == SELF.tokens(0)),
                     (sessionBoxOut.tokens(1) == SELF.tokens(1)),
-                    (sessionBoxOut.tokens(2) == SELF.tokens(2)),
                     (sessionBoxOut.R4[Int].get == SELF.R4[Int].get),
-                    (sessionBoxOut.R5[(SigmaProp, Boolean)].get == SELF.R5[(SigmaProp, Boolean)].get),
-                    (sessionBoxOut.R6[(SigmaProp, (Boolean, Boolean))].get == SELF.R6[(SigmaProp, (Boolean, Boolean))].get)
+                    (sessionBoxOut.R5[SigmaProp].get == SELF.R5[SigmaProp].get),
+                    (sessionBoxOut.R6[SigmaProp].get == SELF.R6[SigmaProp].get),
+                    (sessionBoxOut.R7[(Boolean, Boolean)].get._1 == SELF.R7[(Boolean, Boolean)].get._1),
+                    (sessionBoxOut.R8[Long].get == SELF.R8[Long].get),
+                    (sessionBoxOut.R9[Long].get == SELF.R9[Long].get)
                 ))
 
             }
 
             allOf(Coll(
-                validSessionPeriod,
-                validProblemStatusUpdate,
+                isSessionStarted,
+                !isSessionComplaintTimeOver,
+                validClient,
+                validSessionStatusUpdate,
                 validSessionRecreation
             ))
 
         }
 
-        sigmaProp(validSessionEndProblemMessageTx)
+        sigmaProp(validSessionEndProblemMessageTx) && clientAddressSigmaProp
 
     } else if (_txType.get == 11.toByte) {
 
