@@ -9,18 +9,7 @@
     // ===== Box Contents ===== //
     // Tokens
     // 1. (SessionSingletonId, 1)
-    // 2. (SigUSDId, SessionPrice)
-    // 3. (SigUSDId, Collateral) // If provided by the psychologist. // TODO: All of this will be in one index, not split into two, fix where used in the contract.
-    // Registers
-    // R4: Int                              sessionStartTimeBlockHeight
-    // R5: (SigmaProp, Boolean)            (clientAddressSigmaProp, isPresent)
-    // R6: (SigmaProp, (Boolean, Boolean)) (psychologistAddressSigmaProp, (isSessionAccepted, isPresent)) 
-    // R7: Boolean                          isSessionProblem
-
-    // ===== Box Contents ===== // (new)
-    // Tokens
-    // 1. (SessionSingletonId, 1)
-    // 2. (SigUSDId, SessionPrice + Collateral) // If provided by the psychologist.
+    // 2. (SigUSDId, SessionPrice + ?Collateral) // If provided by the psychologist.
     // Registers
     // R4: Int                              sessionStartTimeBlockHeight
     // R5: SigmaProp                        clientAddressSigmaProp
@@ -57,7 +46,7 @@
     // 2: Cancel Session Tx: Psychologist
     // 3: Cancel Session Tx: Client
     // 4: Refund Tx: Client
-    // 5: Session End Tx: No Problem // TODO: Let pyschologist pay themselves after 15 minute delay to give client chance to complain if needed.
+    // 5: Session End Tx: No Problem
     // 6: Session End Tx: Problem
     // 7: Session End Tx: Psychologist Bad
     // 8: Session End Tx: Client Bad
@@ -816,7 +805,7 @@
 
         sigmaProp(validSessionEndServiceBadTx) && $psyworkshopAdminSigmaProp
     
-    else {
+    } else {
         sigmaProp(false)
     }
 
