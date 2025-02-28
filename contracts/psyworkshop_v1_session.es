@@ -744,7 +744,79 @@
 
         sigmaProp(validSessionEndClientBadTx) && $psyworkshopAdminSigmaProp
         
-    } else {
+    } else if (_txType.get == 9) {
+
+        // ===== Session End: Service Bad ===== //
+        val validSessionEndServiceBadTx: Boolean = {
+
+            // Inputs
+            val adminPKBoxIn: Box = INPUTS(1)
+
+            // Outputs
+            val clientPKBoxOut: Box = OUTPUTS(0)
+            val psychologistPKBoxOut: Box = OUTPUTS(1)
+
+            val validAdmin: Boolean = (adminPKBoxIn.propositionBytes == $psyworkshopAdminSigmaProp.propBytes)
+
+            val validClientRefundBoxOut: Boolean = {
+
+                val validValue: Boolean = (clientPKBoxOut.value == SELF.value / 2)
+
+                val validClientRefundAddressBytes: Boolean = (clientPKBoxOut.propositionBytes == clientAddressSigmaProp.propBytes)
+
+                val validClientRefundAmount: Boolean = {
+                    
+                    allOf(Coll(
+                        (clientPKBoxOut.tokens(0)._1 == sessionPriceTokenId),
+                        (clientPKBoxOut.tokens(0)._2 == sessionPrice)
+                    ))
+                    
+                }
+
+                allOf(Coll(
+                    validValue,
+                    validClientRefundAddressBytes,
+                    validClientRefundAmount
+                ))
+
+            }            
+
+            val validPsychologistBoxOut: Boolean = {
+
+                val validValue: Boolean = (SELF.value - clientPKBoxOut.value)
+
+                val validPsychologistAddressBytes: Boolean = (psychologistPKBoxOut.propositionBytes == psychologistAddressSigmaProp.propBytes)
+
+                val validSessionPriceAmount: Boolean = {
+
+                    allOf(Coll(
+                        (psychologistPKBoxOut.tokens(0)._1 == sessionPriceTokenId),
+                        (psychologistPKBoxOut.tokens(0)._2 == collateral)
+                    ))
+
+                }
+
+                allOf(Coll(
+                    validValue,
+                    validPsychologistAddressBytes,
+                    validSessionPriceAmount
+                ))
+
+            }
+
+            allOf(Coll(
+                isSessionProblem,
+                validAdmin,
+                validClientRefundBoxOut,
+                validPsyworkshopFeeBoxOut,
+                validSessionTermination()
+            ))
+
+        }
+
+        sigmaProp(validSessionEndServiceBadTx) && $psyworkshopAdminSigmaProp
+    
+    else {
         sigmaProp(false)
     }
 
