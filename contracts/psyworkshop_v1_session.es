@@ -16,7 +16,9 @@
     // R6: SigmaProp                        pyschologistAddressSigmaProp
     // R7: (Boolean, Boolean)               (isSessionAccepted, isSessionProblem) // Both false initially.
     // R8: Long                             sessionPrice
-    // R9: Long                             collateral  // Assume 0 initially. 
+    // R9: Long                             collateral  // Assume 0 initially.
+    // R10: SigmaProp                       partnerLayerOneAddressSigmaProp
+    // R11: SigmaProp                       partnerLayerTwoAddressSigmaProp
 
     // ===== Relevant Transactions ===== //
     // 1. Accept Session Tx
@@ -27,7 +29,7 @@
     // 2. Cancel Session Tx
     // Inputs: Session, PsychologistPK
     // Data Inputs: None
-    // Outputs: ClientPK, PsychologistPK, PsyWorkshopFee
+    // Outputs: ClientPK, PsychologistPK, PsyWorkshopFee, PartnerLayerOneFee, PartnerLayerTwoFee
     // Context Variables: TxType
 
     // ===== Compile Time Constants ($) ===== //
@@ -109,6 +111,8 @@
     val isSessionProblem: Boolean = sessionStatus._2
     val sessionPrice: Long = SELF.R8[Long].get
     val collateral: Long = SELF.R9[Long].get
+    val partnerLayerOneAddressSigmaProp: SigmaProp = SELF.R10[SigmaProp].get
+    val partnerLayerTwoAddressSigmaProp: SigmaProp = SELF.R11[SigmaProp].get
 
     val sessionLength: Int = 30                         // The session lasts 60 minutes, so 30 blocks on average since there is 1 block every 2 minutes on average.
     val clientSessionCancelationPeriod: Int = 720       // The client cancelation period is 24hrs, thus since there is 1 block every 2 minutes on average, there are 720 blocks every 24hrs on average.
@@ -471,10 +475,25 @@
 
             // Outputs
             val psychologistPKBoxOut: Box = OUTPUTS(0)
-            val psyworkshopFeeBoxOut: Box = OUTPUTS(1)
+            val partnerLayerOneFeeBoxOut: Box = OUTPUTS(1)
+            val partnerLayerTwoFeeBoxOut: Box = OUTPUTS(2)
+            val psyworkshopFeeBoxOut: Box = OUTPUTS(3)
+
             
-            val psychFee: Long = ((950 * sessionPrice) / 1000)
-            val workshopFee: Long = sessionPrice - psychFee
+            val psychFee: Long = ((800 * sessionPrice) / 1000)
+            val partnerLayerOneFee: Long = ((120 * sessionPrice) / 1000) 
+            val partnerLayerTwoFee: Long = ((30 * sessionPrice) / 1000) 
+            val workshopFee: Long = sessionPrice - (psychFee + partnerLayerOneFee + partnerLayerTwoFee)
+
+
+            // Qs to Luca: 
+            // How to verify partner addresses?
+            // How to write this if function:  
+            // It is possible that 
+                    // - both partnerLayerOne and partnerLayerTwo addressess are present
+                    // - only partnerLayerOne address is present => partnerLayerTwoFee goes to psyworkshopFeeBoxOut
+                    // - none of the partner addressess are present => partnerLayerOneFeeBoxOut and partnerLayerTwoFee go to psyworkshopFeeBoxOut
+
 
             val validPsychologist: Boolean = {
 
