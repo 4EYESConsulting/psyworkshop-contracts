@@ -12,39 +12,63 @@
     // 2. (SigUSDId, SessionPrice + ?Collateral) // If provided by the psychologist.
     // Registers
     // R4: Int                              sessionStartTimeBlockHeight
-    // R5: (SigmaProp, SigmaProp)           (clientAddressSigmaProp, pyschologistAddressSigmaProp)
-    // R6: (Coll[Byte], Coll[Byte])         (partnerLayerOneAddressBytes, partnerLayerTwoAddressBytes)                            
+    // R5: (SigmaProp, SigmaProp)           (clientAddressSigmaProp, pyschologistAddressSigmaProp) // Psychologist address is initially the client address before the session is accepted.
+    // R6: (Coll[Byte], Coll[Byte])         (partnerLayerOneAddressBytes, partnerLayerTwoAddressBytes) // Empty Coll[Byte]() if not present.                            
     // R7: (Boolean, Boolean)               (isSessionAccepted, isSessionProblem) // Both false initially.
     // R8: Long                             sessionPrice
     // R9: Long                             collateral  // Assume 0 initially.
 
     // ===== Relevant Transactions ===== //
     // 1. Accept Session Tx
-    // Inputs: Session, PsychologistPK
+    // Inputs: Session, Psychologist
     // Data Inputs: None
-    // Outputs: Session
+    // Outputs: Session, Psycholgoist, 
     // Context Variables: TxType
     // 2. Cancel Session Tx: Psychologist
     // Inputs: Session, PsychologistPK
     // Data Inputs: None
-    // Outputs: ClientPK, PsychologistPK, PsyWorkshopFee
+    // Outputs: Client, Psychologist, PsyWorkshopFee
     // Context Variables: TxType
     // 3. Cancel Session Tx: Client
+    // Inputs: Session, Client
+    // Data Inputs: None
+    // Outputs: Client, Psychologist, PsyWorkshopFee
+    // Context Variables: TxType
     // 4. Refund Tx: Client
+    // Inputs: Session, Client
+    // Data Inputs: None
+    // Outputs: Client
+    // Context Variables: TxType
     // 5. Session End Tx: No Problem
+    // Inputs: Session, Psychologist
+    // Data Inputs: None
+    // Outputs: Psychologist, ?PartnerLayerOneFee, ?PartnerLayerTwoFee, PsyWorkshopFee
+    // Context Variables: TxType
     // 6. Session End Tx: Problem
+    // Inputs: Session, Client
+    // Data Inputs: None
+    // Outputs: Session
+    // Context Variables: TxType
     // 7. Session End Tx: Psychologist Bad
+    // Inputs: Session, Admin
+    // Data Inputs: None
+    // Outputs: Client, PsyWorkshopFee
     // 8. Session End Tx: Client Bad
+    // Inputs: Session, Admin
+    // Data Inputs: None
+    // Outputs: Psychologist, ?PartnerLayerOneFee, ?PartnerLayerTwoFee, PsyWorkshopFee
+    // Context Variables: TxType
     // 9. Session End Tx: Psyworkshop Bad
+    // Inputs: Session, Admin
+    // Data Inputs: None
+    // Outputs: Client, Psychologist
+    // Context Variables: TxType
 
     // ===== Compile Time Constants ($) ===== //
     // $psyworkshopRegistrationTokenId: Coll[Byte]
     // $psyworkshopFeeAddressBytes: Coll[Byte]
     // $psyworkshopAdminSigmaProp: SigmaProp
     // $minerFeeErgoTreeBytesHash: Coll[Byte]
-    val $psyworkshopRegistrationTokenId: Coll[Byte] = fromBase16("2c89e1e137d05659e45018fd6412da19c687b4101f241b6014c7cd5321897b1e")
-    val $psyworkshopFeeAddressBytes: Coll[Byte] = fromBase16("2c89e1e137d05659e45018fd6412da19c687b4101f241b6014c7cd5321897b1e")
-    val $psyworkshopAdminSigmaProp: SigmaProp = PK("9fzRcctiWfzoJyqGtPWqoXPuxSmFw6zpnjtsQ1B6jSN514XqH4q")
 
     // ===== Context Variables (_) ===== //
     // _txType: Int
@@ -62,12 +86,12 @@
 
     // ===== Functions ===== //
     // def validRegistrationToken: Box => Boolean
-    // def validSessionTermination: () => Boolean
+    // def validSessionTermination: Coll[Byte] => Boolean
     // def getMinerFee: Coll[Byte] => Long
     
-    def validRegistrationToken(input: Box): Boolean = { 
+    def validRegistrationToken(box: Box): Boolean = { 
 
-        input.tokens.exists({ (token: (Coll[Byte], Long)) => {
+        box.tokens.exists({ (token: (Coll[Byte], Long)) => {
 
             (token._1 == $psyworkshopRegistrationTokenId)
 
@@ -75,7 +99,7 @@
 
     }
 
-    def validSessionTermination(): Boolean = {
+    def validSessionTermination(sessionSingletonId: Coll[Byte]): Boolean = {
 
         OUTPUTS.forall({ (output: Box) => {
 
@@ -167,6 +191,7 @@
 
             // Outputs
             val sessionBoxOut: Box = OUTPUTS(0)
+            val psychologistPKBoxOut: Box = OUTPUTS(1)
 
             val validPsychologistRegistration: Boolean = {
 
@@ -219,10 +244,21 @@
 
             }
 
+            val validPsychologistBoxOut: Boolean = {
+
+                allOf(Coll(
+                    (psychologistPKBoxOut.value == psychologistPKBoxIn.value),
+                    (psychologistPKBoxOut.propositionBytes == psychologistPKBoxIn.propositionBytes),
+                    (psychologistPKBoxOut.tokens == psychologistPKBoxIn.tokens)
+                ))
+
+            }
+
             allOf(Coll(
                 validPsychologistRegistration,
                 validCollateralTransfer,
-                validSessionRecreation
+                validSessionRecreation,
+                validPsychologistBoxOut
             ))
 
         }
@@ -268,6 +304,8 @@
 
             val validPsychologistPKBoxOut: Boolean = {
 
+                val validValue: Boolean = (psychologistPKBoxOut.value == psychologistPKBoxIn.value)
+
                 val validPsychologistAddressBytes: Boolean = (psychologistPKBoxOut.propositionBytes == psychologistAddressSigmaProp.propBytes)
 
                 // The fee is 50% of the collateral provided by the psychologist.
@@ -281,8 +319,10 @@
                 }
 
                 allOf(Coll(
+                    validValue,
                     validPsychologistAddressBytes,
-                    validCollateralAmount
+                    validCollateralAmount,
+                    validRegistrationToken(psychologistPKBoxOut)
                 ))
 
             }
@@ -321,7 +361,7 @@
                 validClientRefundBoxOut,
                 validPsychologistPKBoxOut,
                 validPsyworkshopFeeBoxOut,
-                validSessionTermination()
+                validSessionTermination(sessionSingletonId)
             ))
 
         }
@@ -448,7 +488,7 @@
                 validClientRefundBoxOut,
                 validPsychologistPKBoxOut,
                 validPsyworkshopFeeBoxOut,
-                validSessionTermination()
+                validSessionTermination(sessionSingletonId)
             ))
 
         }
@@ -488,7 +528,7 @@
                 !isSessionAccepted,
                 validClient,
                 validClientRefundBoxOut,
-                validSessionTermination()
+                validSessionTermination(sessionSingletonId)
             ))            
 
         }
@@ -537,6 +577,8 @@
 
             val validPsychologistBoxOut: Boolean = {
 
+                val validValue: Boolean = (psychologistPKBoxOut.value == psychologistPKBoxIn.value)
+
                 val validPsychologistAddressBytes: Boolean = (psychologistPKBoxOut.propositionBytes == psychologistAddressSigmaProp.propBytes)
 
                 val validSessionPriceAmount: Boolean = {
@@ -549,8 +591,10 @@
                 }
 
                 allOf(Coll(
+                    validValue,
                     validPsychologistAddressBytes,
-                    validSessionPriceAmount
+                    validSessionPriceAmount,
+                    validRegistrationToken(psychologistPKBoxOut)
                 ))
 
             }
@@ -646,7 +690,7 @@
                 validLayerOneBoxOut,
                 validLayerTwoBoxOut,
                 validPsyworkshopFeeBoxOut,
-                validSessionTermination()
+                validSessionTermination(sessionSingletonId)
             ))
 
         }
@@ -762,7 +806,7 @@
                 validAdmin,
                 validClientRefundBoxOut,
                 validPsyworkshopFeeBoxOut,
-                validSessionTermination()
+                validSessionTermination(sessionSingletonId)
             ))
 
         }
@@ -907,7 +951,7 @@
                 validLayerOneBoxOut,
                 validLayerTwoBoxOut,
                 validPsyworkshopFeeBoxOut,
-                validSessionTermination()
+                validSessionTermination(sessionSingletonId)
             ))
 
         }
@@ -979,7 +1023,7 @@
                 validAdmin,
                 validClientRefundBoxOut,
                 validPsyworkshopFeeBoxOut,
-                validSessionTermination()
+                validSessionTermination(sessionSingletonId)
             ))
 
         }
