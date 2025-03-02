@@ -12,13 +12,11 @@
     // 2. (SigUSDId, SessionPrice + ?Collateral) // If provided by the psychologist.
     // Registers
     // R4: Int                              sessionStartTimeBlockHeight
-    // R5: SigmaProp                        clientAddressSigmaProp
-    // R6: SigmaProp                        pyschologistAddressSigmaProp
+    // R5: (SigmaProp, SigmaProp)           (clientAddressSigmaProp, pyschologistAddressSigmaProp)
+    // R6: (Coll[Byte], Coll[Byte])         (partnerLayerOneAddressBytes, partnerLayerTwoAddressBytes)                            
     // R7: (Boolean, Boolean)               (isSessionAccepted, isSessionProblem) // Both false initially.
     // R8: Long                             sessionPrice
     // R9: Long                             collateral  // Assume 0 initially.
-    // R10: SigmaProp                       partnerLayerOneAddressSigmaProp
-    // R11: SigmaProp                       partnerLayerTwoAddressSigmaProp
 
     // ===== Relevant Transactions ===== //
     // 1. Accept Session Tx
@@ -26,16 +24,24 @@
     // Data Inputs: None
     // Outputs: Session
     // Context Variables: TxType
-    // 2. Cancel Session Tx
+    // 2. Cancel Session Tx: Psychologist
     // Inputs: Session, PsychologistPK
     // Data Inputs: None
-    // Outputs: ClientPK, PsychologistPK, PsyWorkshopFee, PartnerLayerOneFee, PartnerLayerTwoFee
+    // Outputs: ClientPK, PsychologistPK, PsyWorkshopFee
     // Context Variables: TxType
+    // 3. Cancel Session Tx: Client
+    // 4. Refund Tx: Client
+    // 5. Session End Tx: No Problem
+    // 6. Session End Tx: Problem
+    // 7. Session End Tx: Psychologist Bad
+    // 8. Session End Tx: Client Bad
+    // 9. Session End Tx: Psyworkshop Bad
 
     // ===== Compile Time Constants ($) ===== //
     // $psyworkshopRegistrationTokenId: Coll[Byte]
     // $psyworkshopFeeAddressBytes: Coll[Byte]
     // $psyworkshopAdminSigmaProp: SigmaProp
+    // $minerFeeErgoTreeBytesHash: Coll[Byte]
     val $psyworkshopRegistrationTokenId: Coll[Byte] = fromBase16("2c89e1e137d05659e45018fd6412da19c687b4101f241b6014c7cd5321897b1e")
     val $psyworkshopFeeAddressBytes: Coll[Byte] = fromBase16("2c89e1e137d05659e45018fd6412da19c687b4101f241b6014c7cd5321897b1e")
     val $psyworkshopAdminSigmaProp: SigmaProp = PK("9fzRcctiWfzoJyqGtPWqoXPuxSmFw6zpnjtsQ1B6jSN514XqH4q")
@@ -57,6 +63,7 @@
     // ===== Functions ===== //
     // def validRegistrationToken: Box => Boolean
     // def validSessionTermination: () => Boolean
+    // def getMinerFee: Coll[Byte] => Long
     
     def validRegistrationToken(input: Box): Boolean = { 
 
@@ -97,6 +104,25 @@
 
     }
 
+    def getMinerFee(ergoTreeBytesHash: Coll[Byte]): Long = {
+
+        // This should just return the value of one box.
+        OUTPUTS.filter({ (output: Box) => {
+
+            (blake2b256(output.propositionBytes) == ergoTreeBytesHash)
+
+        }}).map({ (output: Box) => {
+
+            output.value
+
+        }}).fold(0L, { (acc: Long, outputValue: Long) => {
+
+            a + outputValue
+
+        }})
+
+    }
+
     // ===== Relevant Variables ===== //
     val _txType: Option[Int] = getVar[Int](0)
 
@@ -104,8 +130,10 @@
     val priceTokenId: Coll[Byte] = SELF.tokens(1)._1
     val totalValue: Long = SELF.tokens(1)._2
     val sessionStartTimeBlockHeight: Int = SELF.R4[Int].get
-    val clientAddressSigmaProp: SigmaProp = SELF.R5[SigmaProp].get    
-    val psychologistAddressSigmaProp: SigmaProp = SELF.R6[SigmaProp].get
+    val clientAddressSigmaProp: SigmaProp = SELF.R5[(SigmaProp, SigmaProp)].get._1    
+    val psychologistAddressSigmaProp: SigmaProp = SELF.R5[(SigmaProp, SigmaProp)].get._2
+    val partnerLayerOneAddressBytes: Coll[Byte] = SELF.R6[(Coll[Byte], Coll[Byte])].get._1
+    val partnerLayerTwoAddressBytes: Coll[Byte] = SELF.R6[(Coll[Byte], Coll[Byte])].get._2
     val sessionStatus: (Boolean, Boolean) = SELF.R7[(Boolean, Boolean)].get
     val isSessionAccepted: Boolean = sessionStatus._1
     val isSessionProblem: Boolean = sessionStatus._2
@@ -126,6 +154,8 @@
     val isPsychologistSessionCancelTime: Boolean = (CONTEXT.HEIGHT - sessionStartTimeBlockHeight >= psychologistSessionCancelationPeriod)
     val isClientSessionCancelTime: Boolean = (CONTEXT.HEIGHT - sessionStartTimeBlockHeight >= clientSessionCancelationPeriod)
     val isClientSessionCancelTimePenalty: Boolean = (CONTEXT.HEIGHT - sessionStartTimeBlockHeight <= clientSessionCancelationPeriod) && (CONTEXT.HEIGHT - sessionStartTimeBlockHeight > 0)
+    val isPartnerLayerOnePresent: Boolean = (partnerLayerOneAddressBytes.size > 0)
+    val isPartnerLayerTwoPresent: Boolean = (partnerLayerTwoAddressBytes.size > 0)
 
     if (_txType.get == 1) {
 
@@ -142,7 +172,7 @@
 
                 val validSessionStatusUpdate: Boolean = {
 
-                    val outPsychologistAddress: SigmaProp = sessionBoxOut.R6[SigmaProp].get
+                    val outPsychologistAddress: SigmaProp = sessionBoxOut.R5[(SigmaProp, SigmaProp)].get._2
                     val outStatus: (Boolean, Boolean) = sessionBoxOut.R7[(Boolean, Boolean)].get
 
                     allOf(Coll(
@@ -182,7 +212,8 @@
                     (sessionBoxOut.tokens(0) == (sessionSingletonId, 1L)),
                     (sessionBoxOut.tokens(1)._1 == sessionPriceTokenId),
                     (sessionBoxOut.R4[Int].get == sessionStartTimeBlockHeight),
-                    (sessionBoxOut.R5[SigmaProp].get == clientAddressSigmaProp),
+                    (sessionBoxOut.R5[(SigmaProp, SigmaProp)].get._1 == clientAddressSigmaProp),
+                    (sessionBoxOut.R6[(Coll[Byte], Coll[Byte])].get == SELF.R6[(Coll[Byte], Coll[Byte])].get),
                     (sessionBoxOut.R8[Long].get == sessionPrice)
                 ))
 
@@ -475,25 +506,23 @@
 
             // Outputs
             val psychologistPKBoxOut: Box = OUTPUTS(0)
-            val partnerLayerOneFeeBoxOut: Box = OUTPUTS(1)
-            val partnerLayerTwoFeeBoxOut: Box = OUTPUTS(2)
-            val psyworkshopFeeBoxOut: Box = OUTPUTS(3)
+            val partnerLayerOneFeeBoxOut: Box = OUTPUTS.getOrElse(1, SELF)
+            val partnerLayerTwoFeeBoxOut: Box = OUTPUTS.getOrElse(2, SELF)
+            val psyworkshopFeeBoxOut: Box = {
+                if (isPartnerLayerOnePresent && isPartnerLayerTwoPresent) {
+                    OUTPUTS(3)
+                } else if (isPartnerLayerOnePresent) {
+                    OUTPUTS(2)
+                } else {
+                    OUTPUTS(1)
+                }
+            }
 
-            
             val psychFee: Long = ((800 * sessionPrice) / 1000)
-            val partnerLayerOneFee: Long = ((120 * sessionPrice) / 1000) 
-            val partnerLayerTwoFee: Long = ((30 * sessionPrice) / 1000) 
+            val partnerLayerOneFee: Long = if (isPartnerLayerOnePresent) ((120 * sessionPrice) / 1000) else 0L
+            val partnerLayerTwoFee: Long = if (isPartnerLayerTwoPresent) ((30 * sessionPrice) / 1000) else 0L 
             val workshopFee: Long = sessionPrice - (psychFee + partnerLayerOneFee + partnerLayerTwoFee)
-
-
-            // Qs to Luca: 
-            // How to verify partner addresses?
-            // How to write this if function:  
-            // It is possible that 
-                    // - both partnerLayerOne and partnerLayerTwo addressess are present
-                    // - only partnerLayerOne address is present => partnerLayerTwoFee goes to psyworkshopFeeBoxOut
-                    // - none of the partner addressess are present => partnerLayerOneFeeBoxOut and partnerLayerTwoFee go to psyworkshopFeeBoxOut
-
+            val minerFee: Long = getMinerFee($minerFeeErgoTreeBytesHash)
 
             val validPsychologist: Boolean = {
 
@@ -523,6 +552,64 @@
                     validPsychologistAddressBytes,
                     validSessionPriceAmount
                 ))
+
+            }
+
+            val validLayerOneBoxOut: Boolean = {
+
+                if (isPartnerLayerOnePresent) {
+
+                    val validValue: Boolean = (partnerLayerOneFeeBoxOut.value == minerFee)
+
+                    val validFeeAddressBytes: Boolean = (partnerLayerOneFeeBoxOut.propositionBytes == partnerLayerOneAddressBytes)
+
+                    val validFeeAmount: Boolean = {
+
+                        allOf(Coll(
+                            (partnerLayerOneFeeBoxOut.tokens(0)._1 == sessionPriceTokenId),
+                            (partnerLayerOneFeeBoxOut.tokens(0)._2 == partnerLayerOneFee)
+                        ))
+
+                    }
+
+                    allOf(Coll(
+                        validValue,
+                        validFeeAddressBytes,
+                        validFeeAmount
+                    ))
+
+                } else {
+                    true
+                }
+
+            }
+
+            val validLayerTwoBoxOut: Boolean = {
+
+                if (isPartnerLayerTwoPresent && isPartnerLayerOnePresent) {
+
+                    val validValue: Boolean = (partnerLayerTwoFeeBoxOut.value == minerFee)
+
+                    val validFeeAddressBytes: Boolean = (partnerLayerTwoFeeBoxOut.propositionBytes == partnerLayerTwoAddressBytes)
+
+                    val validFeeAmount: Boolean = {
+
+                        allOf(Coll(
+                            (partnerLayerTwoFeeBoxOut.tokens(0)._1 == sessionPriceTokenId),
+                            (partnerLayerTwoFeeBoxOut.tokens(0)._2 == partnerLayerTwoFee)
+                        ))
+
+                    }
+
+                    allOf(Coll(
+                        validValue,
+                        validFeeAddressBytes,
+                        validFeeAmount
+                    ))
+
+                } else {
+                    true
+                }
 
             }
 
@@ -556,6 +643,8 @@
                 !isSessionProblem,
                 validPsychologist,
                 validPsychologistBoxOut,
+                validLayerOneBoxOut,
+                validLayerTwoBoxOut,
                 validPsyworkshopFeeBoxOut,
                 validSessionTermination()
             ))
@@ -587,8 +676,8 @@
                     (sessionBoxOut.tokens(0) == SELF.tokens(0)),
                     (sessionBoxOut.tokens(1) == SELF.tokens(1)),
                     (sessionBoxOut.R4[Int].get == SELF.R4[Int].get),
-                    (sessionBoxOut.R5[SigmaProp].get == SELF.R5[SigmaProp].get),
-                    (sessionBoxOut.R6[SigmaProp].get == SELF.R6[SigmaProp].get),
+                    (sessionBoxOut.R5[(SigmaProp, SigmaProp)].get == SELF.R5[(SigmaProp, SigmaProp)].get),
+                    (sessionBoxOut.R6[(Coll[Byte], Coll[Byte])].get == SELF.R6[(Coll[Byte], Coll[Byte])].get),
                     (sessionBoxOut.R7[(Boolean, Boolean)].get._1 == SELF.R7[(Boolean, Boolean)].get._1),
                     (sessionBoxOut.R8[Long].get == SELF.R8[Long].get),
                     (sessionBoxOut.R9[Long].get == SELF.R9[Long].get)
@@ -690,14 +779,27 @@
 
             // Outputs
             val psychologistPKBoxOut: Box = OUTPUTS(0)
-            val psyworkshopFeeBoxOut: Box = OUTPUTS(1)
+            val partnerLayerOneFeeBoxOut: Box = OUTPUTS.getOrElse(1, SELF)
+            val partnerLayerTwoFeeBoxOut: Box = OUTPUTS.getOrElse(2, SELF)
+            val psyworkshopFeeBoxOut: Box = {
+                if (isPartnerLayerOnePresent && isPartnerLayerTwoPresent) {
+                    OUTPUTS(3)
+                } else if (isPartnerLayerOnePresent) {
+                    OUTPUTS(2)
+                } else {
+                    OUTPUTS(1)
+                }
+            }
 
-            val psychFee: Long = ((950 * sessionPrice) / 1000)
-            val workshopFee: Long = sessionPrice - psychFee 
+            val psychFee: Long = ((800 * sessionPrice) / 1000)
+            val partnerLayerOneFee: Long = if (isPartnerLayerOnePresent) ((120 * sessionPrice) / 1000) else 0L
+            val partnerLayerTwoFee: Long = if (isPartnerLayerTwoPresent) ((30 * sessionPrice) / 1000) else 0L 
+            val workshopFee: Long = sessionPrice - (psychFee + partnerLayerOneFee + partnerLayerTwoFee)
+            val minerFee: Long = getMinerFee($minerFeeErgoTreeBytesHash)
 
             val validAdmin: Boolean = (adminPKBoxIn.propositionBytes == $psyworkshopAdminSigmaProp.propBytes)
 
-             val validPsychologistBoxOut: Boolean = {
+            val validPsychologistBoxOut: Boolean = {
 
                 val validPsychologistAddressBytes: Boolean = (psychologistPKBoxOut.propositionBytes == psychologistAddressSigmaProp.propBytes)
 
@@ -714,6 +816,64 @@
                     validPsychologistAddressBytes,
                     validSessionPriceAmount
                 ))
+
+            }
+
+            val validLayerOneBoxOut: Boolean = {
+
+                if (isPartnerLayerOnePresent) {
+
+                    val validValue: Boolean = (partnerLayerOneFeeBoxOut.value == minerFee)
+
+                    val validFeeAddressBytes: Boolean = (partnerLayerOneFeeBoxOut.propositionBytes == partnerLayerOneAddressBytes)
+
+                    val validFeeAmount: Boolean = {
+
+                        allOf(Coll(
+                            (partnerLayerOneFeeBoxOut.tokens(0)._1 == sessionPriceTokenId),
+                            (partnerLayerOneFeeBoxOut.tokens(0)._2 == partnerLayerOneFee)
+                        ))
+
+                    }
+
+                    allOf(Coll(
+                        validValue,
+                        validFeeAddressBytes,
+                        validFeeAmount
+                    ))
+
+                } else {
+                    true
+                }
+
+            }
+
+            val validLayerTwoBoxOut: Boolean = {
+
+                if (isPartnerLayerTwoPresent && isPartnerLayerOnePresent) {
+
+                    val validValue: Boolean = (partnerLayerTwoFeeBoxOut.value == minerFee)
+
+                    val validFeeAddressBytes: Boolean = (partnerLayerTwoFeeBoxOut.propositionBytes == partnerLayerTwoAddressBytes)
+
+                    val validFeeAmount: Boolean = {
+
+                        allOf(Coll(
+                            (partnerLayerTwoFeeBoxOut.tokens(0)._1 == sessionPriceTokenId),
+                            (partnerLayerTwoFeeBoxOut.tokens(0)._2 == partnerLayerTwoFee)
+                        ))
+
+                    }
+
+                    allOf(Coll(
+                        validValue,
+                        validFeeAddressBytes,
+                        validFeeAmount
+                    ))
+
+                } else {
+                    true
+                }
 
             }
 
@@ -744,6 +904,8 @@
                 isSessionProblem,
                 validAdmin,
                 validClientRefundBoxOut,
+                validLayerOneBoxOut,
+                validLayerTwoBoxOut,
                 validPsyworkshopFeeBoxOut,
                 validSessionTermination()
             ))
