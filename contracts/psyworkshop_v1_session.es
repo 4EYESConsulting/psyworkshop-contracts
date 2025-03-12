@@ -142,7 +142,7 @@
 
         }}).fold(0L, { (acc: Long, outputValue: Long) => {
 
-            a + outputValue
+            acc + outputValue
 
         }})
 
@@ -186,8 +186,6 @@
     val isSessionProblem: Boolean = sessionStatus._2
     val sessionPrice: Long = SELF.R8[Long].get
     val collateral: Long = SELF.R9[Long].get
-    val partnerLayerOneAddressSigmaProp: SigmaProp = SELF.R10[SigmaProp].get
-    val partnerLayerTwoAddressSigmaProp: SigmaProp = SELF.R11[SigmaProp].get
 
     val sessionLength: Int = 30                         // The session lasts 60 minutes, so 30 blocks on average since there is 1 block every 2 minutes on average.
     val clientSessionCancelationPeriod: Int = 720       // The client cancelation period is 24hrs, thus since there is 1 block every 2 minutes on average, there are 720 blocks every 24hrs on average.
