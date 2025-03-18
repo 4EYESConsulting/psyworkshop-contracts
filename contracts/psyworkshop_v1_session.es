@@ -174,7 +174,7 @@
     val _txType: Option[Int] = getVar[Int](0)
 
     val sessionSingletonId: Coll[Byte] = SELF.tokens(0)._1
-    val priceTokenId: Coll[Byte] = SELF.tokens(1)._1
+    val sessionPriceTokenId: Coll[Byte] = SELF.tokens(1)._1
     val totalValue: Long = SELF.tokens(1)._2
     val sessionStartTimeBlockHeight: Int = SELF.R4[Int].get
     val clientAddressSigmaProp: SigmaProp = SELF.R5[(SigmaProp, SigmaProp)].get._1    
