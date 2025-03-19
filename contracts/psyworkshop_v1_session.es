@@ -220,11 +220,11 @@
 
                     val outPsychologistAddress: SigmaProp = sessionBoxOut.R5[(SigmaProp, SigmaProp)].get._2
                     val outStatus: (Boolean, Boolean) = sessionBoxOut.R7[(Boolean, Boolean)].get
-                    val propAndBox: (SigmaProp, Box) = (outPsychologistAddress, psychologistPKBoxIn)
+                    val propAndBoxPsych: (SigmaProp, Box) = (outPsychologistAddress, psychologistPKBoxIn)
 
                     allOf(Coll(
                         (outPsychologistAddress !=  $psyworkshopAdminSigmaProp),
-                        isSigmaPropEqualToBoxProp(propAndBox),
+                        isSigmaPropEqualToBoxProp(propAndBoxPsych),
                         (outStatus == (true, false))
                     ))
 
@@ -302,10 +302,10 @@
 
             val validPsychologist: Boolean = {
 
-                val propAndBox: (SigmaProp, Box) = (psychologistAddressSigmaProp, psychologistPKBoxIn)
+                val propAndBoxPsych: (SigmaProp, Box) = (psychologistAddressSigmaProp, psychologistPKBoxIn)
 
                 allOf(Coll(
-                    isSigmaPropEqualToBoxProp(propAndBox),
+                    isSigmaPropEqualToBoxProp(propAndBoxPysch),
                     validRegistrationToken(psychologistPKBoxIn)
                 ))
 
@@ -313,12 +313,12 @@
 
             val validClientRefundBoxOut: Boolean = {
 
-                val propAndBox: (SigmaProp, Box) = (clientAddressSigmaProp, clientPKBoxOut)
+                val propAndBoxClient: (SigmaProp, Box) = (clientAddressSigmaProp, clientPKBoxOut)
 
                 val validClientRefundAmount: Boolean = (clientPKBoxOut.tokens(0) == (sessionPriceTokenId, sessionPrice))
 
                 allOf(Coll(
-                    isSigmaPropEqualToBoxProp(propAndBox),
+                    isSigmaPropEqualToBoxProp(propAndBoxClient),
                     validClientRefundAmount
                 ))
 
@@ -408,8 +408,8 @@
             val workshopFee = remainder / 2
             val psychFee = remainder - workshopFee
 
-            val propAndBox: (SigmaProp, Box) = (clientAddressSigmaProp, clientPKBoxIn)
-            val validClient: Boolean = isSigmaPropEqualToBoxProp(propAndBox)
+            val propAndBoxClient: (SigmaProp, Box) = (clientAddressSigmaProp, clientPKBoxIn)
+            val validClient: Boolean = isSigmaPropEqualToBoxProp(propAndBoxClient)
 
             val validClientRefundBoxOut: Boolean = {
 
@@ -440,8 +440,8 @@
 
             val validPsychologistPKBoxOut: Boolean = {
 
-                val propAndBox: (SigmaProp, Box) = (psychologistAddressSigmaProp, psychologistPKBoxOut)
-                val validPsychologistAddressBytes: Boolean = isSigmaPropEqualToBoxProp(propAndBox)
+                val propAndBoxPsych: (SigmaProp, Box) = (psychologistAddressSigmaProp, psychologistPKBoxOut)
+                val validPsychologistAddressBytes: Boolean = isSigmaPropEqualToBoxProp(propAndBoxPsych)
 
                 val validCollateralAmount: Boolean = {
 
@@ -530,8 +530,8 @@
             // Outputs
             val clientPKBoxOut: Box = OUTPUTS(0)
 
-            val propAndBox: (SigmaProp, Box) = (clientAddressSigmaProp, clientPKBoxIn)
-            val validClient: Boolean = isSigmaPropEqualToBoxProp(propAndBox)
+            val propAndBoxClient: (SigmaProp, Box) = (clientAddressSigmaProp, clientPKBoxIn)
+            val validClient: Boolean = isSigmaPropEqualToBoxProp(propAndBoxClient)
 
             val validClientRefundBoxOut: Boolean = {
 
@@ -591,8 +591,8 @@
 
             val validPsychologist: Boolean = {
 
-                val propAndBox: (SigmaProp, Box) = (psychologistAddressSigmaProp, psychologistPKBoxIn)
-                val validAddressBytes: Boolean = isSigmaPropEqualToBoxProp(propAndBox)
+                val propAndBoxPsych: (SigmaProp, Box) = (psychologistAddressSigmaProp, psychologistPKBoxIn)
+                val validAddressBytes: Boolean = isSigmaPropEqualToBoxProp(propAndBoxPsych)
 
                 allOf(Coll(
                     validAddressBytes,
@@ -734,8 +734,8 @@
             // Outputs
             val sessionBoxOut: Box = OUTPUTS(0)
 
-            val propAndBox: (SigmaProp, Box) = (clientAddressSigmaProp, clientPKBoxIn)
-            val validClient: Boolean = isSigmaPropEqualToBoxProp(propAndBox)
+            val propAndBoxClient: (SigmaProp, Box) = (clientAddressSigmaProp, clientPKBoxIn)
+            val validClient: Boolean = isSigmaPropEqualToBoxProp(propAndBoxClient)
 
             val validSessionStatusUpdate: Boolean = (sessionBoxOut.R7[(Boolean, Boolean)].get._2 == true)
 
@@ -783,15 +783,15 @@
             val clientAmount: Long = (collateral / 2) + sessionPrice
             val workshopFee: Long = collateral - (collateral / 2)
 
-            val propAndBox: (SigmaProp, Box) = ($psyworkshopAdminSigmaProp, adminPKBoxIn)
-            val validAdmin: Boolean = isSigmaPropEqualToBoxProp(propAndBox)
+            val propAndBoxAdmin: (SigmaProp, Box) = ($psyworkshopAdminSigmaProp, adminPKBoxIn)
+            val validAdmin: Boolean = isSigmaPropEqualToBoxProp(propAndBoxAdmin)
 
             val validClientRefundBoxOut: Boolean = {
 
                 val validValue: Boolean = (clientPKBoxOut.value == SELF.value)
 
-                val propAndBox: (SigmaProp, Box) = (clientAddressSigmaProp, clientPKBoxOut)
-                val validClientRefundAddressBytes: Boolean = isSigmaPropEqualToBoxProp(propAndBox)
+                val propAndBoxClient: (SigmaProp, Box) = (clientAddressSigmaProp, clientPKBoxOut)
+                val validClientRefundAddressBytes: Boolean = isSigmaPropEqualToBoxProp(propAndBoxClient)
 
                 val validClientRefundAmount: Boolean = {
                     
@@ -870,13 +870,13 @@
             val workshopFee: Long = sessionPrice - (psychFee + partnerLayerOneFee + partnerLayerTwoFee)
             val minerFee: Long = getMinerFee($minerFeeErgoTreeBytesHash)
 
-            val propAndBox: (SigmaProp, Box) = ($psyworkshopAdminSigmaProp, adminPKBoxIn)
-            val validAdmin: Boolean = isSigmaPropEqualToBoxProp(propAndBox)
+            val propAndBoxAdmin: (SigmaProp, Box) = ($psyworkshopAdminSigmaProp, adminPKBoxIn)
+            val validAdmin: Boolean = isSigmaPropEqualToBoxProp(propAndBoxAdmin)
 
             val validPsychologistBoxOut: Boolean = {
 
-                val propAndBox: (SigmaProp, Box) = (psychologistAddressSigmaProp, psychologistPKBoxOut)
-                val validPsychologistAddressBytes: Boolean = isSigmaPropEqualToBoxProp(propAndBox)
+                val propAndBoxPsych: (SigmaProp, Box) = (psychologistAddressSigmaProp, psychologistPKBoxOut)
+                val validPsychologistAddressBytes: Boolean = isSigmaPropEqualToBoxProp(propAndBoxPsych)
 
                 val validSessionPriceAmount: Boolean = {
 
@@ -1001,15 +1001,15 @@
             val clientPKBoxOut: Box = OUTPUTS(0)
             val psychologistPKBoxOut: Box = OUTPUTS(1)
 
-            val propAndBox: (SigmaProp, Box) = ($psyworkshopAdminSigmaProp, adminPKBoxIn)
-            val validAdmin: Boolean = isSigmaPropEqualToBoxProp(propAndBox)
+            val propAndBoxAdmin: (SigmaProp, Box) = ($psyworkshopAdminSigmaProp, adminPKBoxIn)
+            val validAdmin: Boolean = isSigmaPropEqualToBoxProp(propAndBoxAdmin)
 
             val validClientRefundBoxOut: Boolean = {
 
                 val validValue: Boolean = (clientPKBoxOut.value == SELF.value / 2)
 
-                val propAndBox: (SigmaProp, Box) = (clientAddressSigmaProp, clientPKBoxOut)
-                val validClientRefundAddressBytes: Boolean = isSigmaPropEqualToBoxProp(propAndBox)
+                val propAndBoxClient: (SigmaProp, Box) = (clientAddressSigmaProp, clientPKBoxOut)
+                val validClientRefundAddressBytes: Boolean = isSigmaPropEqualToBoxProp(propAndBoxClient)
 
                 val validClientRefundAmount: Boolean = {
                     
@@ -1032,8 +1032,8 @@
 
                 val validValue: Boolean = (SELF.value - clientPKBoxOut.value)
 
-                val propAndBox: (SigmaProp, Box) = (psychologistAddressSigmaProp, psychologistPKBoxOut)
-                val validPsychologistAddressBytes: Boolean = isSigmaPropEqualToBoxProp(propAndBox)
+                val propAndBoxPsych: (SigmaProp, Box) = (psychologistAddressSigmaProp, psychologistPKBoxOut)
+                val validPsychologistAddressBytes: Boolean = isSigmaPropEqualToBoxProp(propAndBoxPsych)
 
                 val validSessionPriceAmount: Boolean = {
 
