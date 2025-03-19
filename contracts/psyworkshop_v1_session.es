@@ -305,7 +305,7 @@
                 val propAndBoxPsych: (SigmaProp, Box) = (psychologistAddressSigmaProp, psychologistPKBoxIn)
 
                 allOf(Coll(
-                    isSigmaPropEqualToBoxProp(propAndBoxPysch),
+                    isSigmaPropEqualToBoxProp(propAndBoxPsych),
                     validRegistrationToken(psychologistPKBoxIn)
                 ))
 
