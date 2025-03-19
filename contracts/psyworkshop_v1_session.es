@@ -1029,7 +1029,7 @@
 
             val validPsychologistBoxOut: Boolean = {
 
-                val validValue: Boolean = (SELF.value - clientPKBoxOut.value)
+                val validValue: Boolean = (psychologistPKBoxOut.value == SELF.value - clientPKBoxOut.value)
 
                 val propAndBoxPsych: (SigmaProp, Box) = (psychologistAddressSigmaProp, psychologistPKBoxOut)
                 val validPsychologistAddressBytes: Boolean = isSigmaPropEqualToBoxProp(propAndBoxPsych)
