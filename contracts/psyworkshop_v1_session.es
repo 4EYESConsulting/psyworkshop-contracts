@@ -1055,7 +1055,7 @@
                 isSessionProblem,
                 validAdmin,
                 validClientRefundBoxOut,
-                validPsyworkshopFeeBoxOut,
+                validPsychologistBoxOut,
                 validSessionTermination(sessionSingletonId)
             ))
 
