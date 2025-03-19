@@ -978,7 +978,6 @@
             allOf(Coll(
                 isSessionProblem,
                 validAdmin,
-                validClientRefundBoxOut,
                 validLayerOneBoxOut,
                 validLayerTwoBoxOut,
                 validPsyworkshopFeeBoxOut,
