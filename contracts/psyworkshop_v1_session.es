@@ -271,7 +271,7 @@
                 allOf(Coll(
                     (psychologistPKBoxOut.value == psychologistPKBoxIn.value),
                     (psychologistPKBoxOut.propositionBytes == psychologistPKBoxIn.propositionBytes),
-                    (psychologistPKBoxOut.tokens == psychologistPKBoxIn.tokens)
+                    validRegistrationToken(psychologistPKBoxOut)
                 ))
 
             }
