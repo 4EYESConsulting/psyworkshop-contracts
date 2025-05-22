@@ -269,7 +269,6 @@
             val validPsychologistBoxOut: Boolean = {
 
                 allOf(Coll(
-                    (psychologistPKBoxOut.value == psychologistPKBoxIn.value),
                     (psychologistPKBoxOut.propositionBytes == psychologistPKBoxIn.propositionBytes),
                     validRegistrationToken(psychologistPKBoxOut)
                 ))
@@ -325,8 +324,6 @@
             }
 
             val validPsychologistPKBoxOut: Boolean = {
-
-                val validValue: Boolean = (psychologistPKBoxOut.value == psychologistPKBoxIn.value)
 
                 val validPsychologistAddressBytes: Boolean = (psychologistPKBoxOut.propositionBytes == psychologistPKBoxIn.propositionBytes)
 
@@ -602,8 +599,6 @@
             } 
 
             val validPsychologistBoxOut: Boolean = {
-
-                val validValue: Boolean = (psychologistPKBoxOut.value == psychologistPKBoxIn.value)
 
                 val validPsychologistAddressBytes: Boolean = (psychologistPKBoxOut.propositionBytes == psychologistPKBoxIn.propositionBytes)
 
