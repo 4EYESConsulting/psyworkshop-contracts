@@ -349,7 +349,6 @@
                 }
 
                 allOf(Coll(
-                    validValue,
                     validPsychologistAddressBytes,
                     validCollateralAmount,
                     validRegistrationToken(psychologistPKBoxOut)
@@ -358,8 +357,6 @@
             }
 
             val validPsyworkshopFeeBoxOut: Boolean = {
-
-                val validValue: Boolean = (psyworkshopFeeBoxOut.value == SELF.value)
 
                 val validFeeAddressBytes: Boolean = (psyworkshopFeeBoxOut.propositionBytes == $psyworkshopFeeAddressBytes)
 
@@ -377,7 +374,6 @@
                 }
                     
                 allOf(Coll(
-                    validValue,
                     validFeeAddressBytes,
                     validFeeAmount
                 ))
@@ -488,8 +484,6 @@
 
                 if (isClientSessionCancelTimePenalty) {
 
-                    val validValue: Boolean = (psyworkshopFeeBoxOut.value == SELF.value)
-
                     val validFeeAddressBytes: Boolean = (psyworkshopFeeBoxOut.propositionBytes == $psyworkshopFeeAddressBytes)
                 
                     // The fee is 25% of the sessionPrice provided by the client, only if the penalty time is reached.
@@ -503,7 +497,6 @@
                     }
                         
                     allOf(Coll(
-                        validValue,
                         validFeeAddressBytes,
                         validFeeAmount
                     ))
@@ -543,14 +536,11 @@
 
             val validClientRefundBoxOut: Boolean = {
 
-                val validValue: Boolean = (clientPKBoxOut.value == SELF.value)
-
                 val validClientRefundAddressBytes: Boolean = (clientPKBoxOut.propositionBytes == clientPKBoxIn.propositionBytes)
 
                 val validClientRefundAmount: Boolean = (clientPKBoxOut.tokens(0) == (sessionPriceTokenId, sessionPrice))
 
                 allOf(Coll(
-                    validValue,
                     validClientRefundAddressBytes,
                     validClientRefundAmount
                 ))
@@ -623,7 +613,6 @@
                 }
 
                 allOf(Coll(
-                    validValue,
                     validPsychologistAddressBytes,
                     validSessionPriceAmount,
                     validRegistrationToken(psychologistPKBoxOut)
@@ -634,8 +623,6 @@
             val validLayerOneBoxOut: Boolean = {
 
                 if (isPartnerLayerOnePresent) {
-
-                    val validValue: Boolean = (partnerLayerOneFeeBoxOut.value == minerFee)
 
                     val validFeeAddressBytes: Boolean = (partnerLayerOneFeeBoxOut.propositionBytes == partnerLayerOneAddressBytes)
 
@@ -649,7 +636,6 @@
                     }
 
                     allOf(Coll(
-                        validValue,
                         validFeeAddressBytes,
                         validFeeAmount
                     ))
@@ -664,8 +650,6 @@
 
                 if (isPartnerLayerTwoPresent && isPartnerLayerOnePresent) {
 
-                    val validValue: Boolean = (partnerLayerTwoFeeBoxOut.value == minerFee)
-
                     val validFeeAddressBytes: Boolean = (partnerLayerTwoFeeBoxOut.propositionBytes == partnerLayerTwoAddressBytes)
 
                     val validFeeAmount: Boolean = {
@@ -678,7 +662,6 @@
                     }
 
                     allOf(Coll(
-                        validValue,
                         validFeeAddressBytes,
                         validFeeAmount
                     ))
@@ -690,8 +673,6 @@
             }
 
             val validPsyworkshopFeeBoxOut: Boolean = {
-
-                val validValue: Boolean = (psyworkshopFeeBoxOut.value == SELF.value)
 
                 val validFeeAddressBytes: Boolean = (psyworkshopFeeBoxOut.propositionBytes == $psyworkshopFeeAddressBytes)
 
@@ -705,7 +686,6 @@
                 }
 
                 allOf(Coll(
-                    validValue,
                     validFeeAddressBytes,
                     validFeeAmount
                 ))
@@ -794,8 +774,6 @@
 
             val validClientRefundBoxOut: Boolean = {
 
-                val validValue: Boolean = (clientPKBoxOut.value == SELF.value)
-
                 val propAndBoxClient: (SigmaProp, Box) = (clientAddressSigmaProp, clientPKBoxOut)
                 val validClientRefundAddressBytes: Boolean = isSigmaPropEqualToBoxProp(propAndBoxClient)
 
@@ -809,7 +787,6 @@
                 }
 
                 allOf(Coll(
-                    validValue,
                     validClientRefundAddressBytes,
                     validClientRefundAmount
                 ))
@@ -904,8 +881,6 @@
 
                 if (isPartnerLayerOnePresent) {
 
-                    val validValue: Boolean = (partnerLayerOneFeeBoxOut.value == minerFee)
-
                     val validFeeAddressBytes: Boolean = (partnerLayerOneFeeBoxOut.propositionBytes == partnerLayerOneAddressBytes)
 
                     val validFeeAmount: Boolean = {
@@ -918,7 +893,6 @@
                     }
 
                     allOf(Coll(
-                        validValue,
                         validFeeAddressBytes,
                         validFeeAmount
                     ))
@@ -933,8 +907,6 @@
 
                 if (isPartnerLayerTwoPresent && isPartnerLayerOnePresent) {
 
-                    val validValue: Boolean = (partnerLayerTwoFeeBoxOut.value == minerFee)
-
                     val validFeeAddressBytes: Boolean = (partnerLayerTwoFeeBoxOut.propositionBytes == partnerLayerTwoAddressBytes)
 
                     val validFeeAmount: Boolean = {
@@ -947,7 +919,6 @@
                     }
 
                     allOf(Coll(
-                        validValue,
                         validFeeAddressBytes,
                         validFeeAmount
                     ))
@@ -959,8 +930,6 @@
             }
 
             val validPsyworkshopFeeBoxOut: Boolean = {
-
-                val validValue: Boolean = (psyworkshopFeeBoxOut.value == SELF.value)
 
                 val validFeeAddressBytes: Boolean = (psyworkshopFeeBoxOut.propositionBytes == $psyworkshopFeeAddressBytes)
 
@@ -974,7 +943,6 @@
                 }
 
                 allOf(Coll(
-                    validValue,
                     validFeeAddressBytes,
                     validFeeAmount
                 ))
@@ -1011,8 +979,6 @@
 
             val validClientRefundBoxOut: Boolean = {
 
-                val validValue: Boolean = (clientPKBoxOut.value == SELF.value / 2)
-
                 val propAndBoxClient: (SigmaProp, Box) = (clientAddressSigmaProp, clientPKBoxOut)
                 val validClientRefundAddressBytes: Boolean = isSigmaPropEqualToBoxProp(propAndBoxClient)
 
@@ -1026,7 +992,6 @@
                 }
 
                 allOf(Coll(
-                    validValue,
                     validClientRefundAddressBytes,
                     validClientRefundAmount
                 ))
@@ -1034,8 +999,6 @@
             }            
 
             val validPsychologistBoxOut: Boolean = {
-
-                val validValue: Boolean = (psychologistPKBoxOut.value == SELF.value - clientPKBoxOut.value)
 
                 val propAndBoxPsych: (SigmaProp, Box) = (psychologistAddressSigmaProp, psychologistPKBoxOut)
                 val validPsychologistAddressBytes: Boolean = isSigmaPropEqualToBoxProp(propAndBoxPsych)
@@ -1050,7 +1013,6 @@
                 }
 
                 allOf(Coll(
-                    validValue,
                     validPsychologistAddressBytes,
                     validSessionPriceAmount
                 ))
