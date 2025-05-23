@@ -2,14 +2,17 @@
 
     // ===== Contract Information ===== //
     // Name: PsyWORKshop Session Contract
-    // Description: Contract for the session box.
+    // Description: Contract for the session box controlling how the client and psychologist interact with each other during a session.
+    //              A client creates a request for a session, paying the session price.
+    //              A psychologist can accept the request, providing collateral that can be claimed in the case of a dispute.
     // Version: 1.0.0
-    // Author: Luca D'Angelo
+    // Author: Luca D'Angelo (ldgaetano@protonmail.com)
 
     // ===== Box Contents ===== //
     // Tokens
     // 1. (SessionSingletonId, 1)
     // 2. (SigUSDId, SessionPrice + ?Collateral) // If provided by the psychologist.
+    //
     // Registers
     // R4: Int                              sessionStartTimeBlockHeight
     // R5: (SigmaProp, SigmaProp)           (clientAddressSigmaProp, pyschologistAddressSigmaProp) // Psychologist address is initially the client address before the session is accepted.
@@ -18,46 +21,54 @@
     // R8: Long                             sessionPrice
     // R9: Long                             collateral  // Assume 0 initially.
 
-    // ===== Relevant Transactions ===== //
+    // ===== Transactions ===== //
     // 1. Accept Session Tx
     // Inputs: Session, Psychologist
     // Data Inputs: None
     // Outputs: Session, Psycholgoist, 
     // Context Variables: TxType
+    //
     // 2. Cancel Session Tx: Psychologist
     // Inputs: Session, PsychologistPK
     // Data Inputs: None
     // Outputs: Client, Psychologist, PsyWorkshopFee
     // Context Variables: TxType
+    //
     // 3. Cancel Session Tx: Client
     // Inputs: Session, Client
     // Data Inputs: None
     // Outputs: Client, Psychologist, PsyWorkshopFee
     // Context Variables: TxType
+    //
     // 4. Refund Tx: Client
     // Inputs: Session, Client
     // Data Inputs: None
     // Outputs: Client
     // Context Variables: TxType
+    //
     // 5. Session End Tx: No Problem
     // Inputs: Session, Psychologist
     // Data Inputs: None
     // Outputs: Psychologist, ?PartnerLayerOneFee, ?PartnerLayerTwoFee, PsyWorkshopFee
     // Context Variables: TxType
+    //
     // 6. Session End Tx: Problem
     // Inputs: Session, Client
     // Data Inputs: None
     // Outputs: Session
     // Context Variables: TxType
+    //
     // 7. Session End Tx: Psychologist Bad
     // Inputs: Session, Admin
     // Data Inputs: None
     // Outputs: Client, PsyWorkshopFee
+    //
     // 8. Session End Tx: Client Bad
     // Inputs: Session, Admin
     // Data Inputs: None
     // Outputs: Psychologist, ?PartnerLayerOneFee, ?PartnerLayerTwoFee, PsyWorkshopFee
     // Context Variables: TxType
+    //
     // 9. Session End Tx: Psyworkshop Bad
     // Inputs: Session, Admin
     // Data Inputs: None
@@ -73,7 +84,7 @@
     // ===== Context Variables (_) ===== //
     // _txType: Int
 
-    // ===== Tx Type Bytes ===== //
+    // ===== Tx Type ===== //
     // 1: Accept Session Tx
     // 2: Cancel Session Tx: Psychologist
     // 3: Cancel Session Tx: Client
@@ -170,7 +181,7 @@
 
     }
 
-    // ===== Relevant Variables ===== //
+    // ===== Variables ===== //
     val _txType: Option[Int] = getVar[Int](0)
 
     val sessionSingletonId: Coll[Byte] = SELF.tokens(0)._1
@@ -284,7 +295,7 @@
 
         }
 
-        sigmaProp(validAcceptSessionTx) && psychologistAddressSigmaProp
+        sigmaProp(validAcceptSessionTx)
 
     } else if (_txType.get == 2) {
 
@@ -385,7 +396,7 @@
 
         }
 
-        sigmaProp(validCancelSessionPsychologistTx) && psychologistAddressSigmaProp
+        sigmaProp(validCancelSessionPsychologistTx)
 
     } else if (_txType.get == 3) {
 
@@ -514,7 +525,7 @@
 
         }
 
-        sigmaProp(validCancelSessionClientTx) && clientAddressSigmaProp
+        sigmaProp(validCancelSessionClientTx)
 
     } else if (_txType.get == 4) {
 
@@ -555,7 +566,7 @@
 
         }
 
-        sigmaProp(validClientRefundTx) && clientAddressSigmaProp
+        sigmaProp(validClientRefundTx)
 
     } else if (_txType.get == 5) {
 
@@ -716,7 +727,7 @@
 
         }
 
-        sigmaProp(validSessionEndNoProblemTx) && psychologistAddressSigmaProp
+        sigmaProp(validSessionEndNoProblemTx)
 
     } else if (_txType.get == 6) {
 
@@ -761,7 +772,7 @@
 
         }
 
-        sigmaProp(validSessionEndProblemTx) && clientAddressSigmaProp
+        sigmaProp(validSessionEndProblemTx)
 
     } else if (_txType.get == 7) {
 
@@ -835,7 +846,7 @@
 
         }
 
-        sigmaProp(validSessionEndPsychologistBadTx) && $psyworkshopAdminSigmaProp
+        sigmaProp(validSessionEndPsychologistBadTx)
 
     } else if (_txType.get == 8) {
 
@@ -981,7 +992,7 @@
 
         }
 
-        sigmaProp(validSessionEndClientBadTx) && $psyworkshopAdminSigmaProp
+        sigmaProp(validSessionEndClientBadTx)
         
     } else if (_txType.get == 9) {
 
@@ -1056,7 +1067,7 @@
 
         }
 
-        sigmaProp(validSessionEndServiceBadTx) && $psyworkshopAdminSigmaProp
+        sigmaProp(validSessionEndServiceBadTx)
     
     } else {
         sigmaProp(false)
