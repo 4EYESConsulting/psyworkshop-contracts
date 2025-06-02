@@ -79,7 +79,6 @@
     // $psyworkshopRegistrationTokenId: Coll[Byte]
     // $psyworkshopFeeAddressBytes: Coll[Byte]
     // $psyworkshopAdminSigmaProp: SigmaProp
-    // $minerFeeErgoTreeBytesHash: Coll[Byte]
 
     // ===== Context Variables (_) ===== //
     // _txType: Int
@@ -98,7 +97,6 @@
     // ===== Functions ===== //
     // def validRegistrationToken: Box => Boolean
     // def validSessionTermination: Coll[Byte] => Boolean
-    // def getMinerFee: Coll[Byte] => Long
     // def isSigmaPropEqualToBoxProp: (SigmaProp, Box) => Boolean
     
     def validRegistrationToken(box: Box): Boolean = { 
@@ -135,25 +133,6 @@
                 validSingletonBurn,
                 validSessionBoxDestruction
             ))
-
-        }})
-
-    }
-
-    def getMinerFee(ergoTreeBytesHash: Coll[Byte]): Long = {
-
-        // This should just return the value of one box.
-        OUTPUTS.filter({ (output: Box) => {
-
-            (blake2b256(output.propositionBytes) == ergoTreeBytesHash)
-
-        }}).map({ (output: Box) => {
-
-            output.value
-
-        }}).fold(0L, { (acc: Long, outputValue: Long) => {
-
-            acc + outputValue
 
         }})
 
@@ -585,7 +564,6 @@
             val partnerLayerOneFee: Long = if (isPartnerLayerOnePresent) ((120 * sessionPrice) / 1000) else 0L
             val partnerLayerTwoFee: Long = if (isPartnerLayerTwoPresent) ((30 * sessionPrice) / 1000) else 0L 
             val workshopFee: Long = sessionPrice - (psychFee + partnerLayerOneFee + partnerLayerTwoFee)
-            val minerFee: Long = getMinerFee($minerFeeErgoTreeBytesHash)
 
             val validPsychologist: Boolean = {
 
@@ -851,7 +829,6 @@
             val partnerLayerOneFee: Long = if (isPartnerLayerOnePresent) ((120 * sessionPrice) / 1000) else 0L
             val partnerLayerTwoFee: Long = if (isPartnerLayerTwoPresent) ((30 * sessionPrice) / 1000) else 0L 
             val workshopFee: Long = sessionPrice - (psychFee + partnerLayerOneFee + partnerLayerTwoFee)
-            val minerFee: Long = getMinerFee($minerFeeErgoTreeBytesHash)
 
             val propAndBoxAdmin: (SigmaProp, Box) = ($psyworkshopAdminSigmaProp, adminPKBoxIn)
             val validAdmin: Boolean = isSigmaPropEqualToBoxProp(propAndBoxAdmin)
