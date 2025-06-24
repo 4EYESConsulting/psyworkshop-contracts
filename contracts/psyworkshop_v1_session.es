@@ -186,8 +186,8 @@
     val isSessionStarted: Boolean = (CONTEXT.HEIGHT >= sessionStartTimeBlockHeight) && isSessionAccepted
     val isSessionOver: Boolean = (CONTEXT.HEIGHT >= sessionStartTimeBlockHeight + sessionLength)
     val isSessionComplaintTimeOver: Boolean = (CONTEXT.HEIGHT >= sessionStartTimeBlockHeight + sessionLength + fifteenMinutes)
-    val isPsychologistSessionCancelTime: Boolean = (CONTEXT.HEIGHT - sessionStartTimeBlockHeight >= psychologistSessionCancelationPeriod)
-    val isClientSessionCancelTime: Boolean = (CONTEXT.HEIGHT - sessionStartTimeBlockHeight >= clientSessionCancelationPeriod)
+    val isPsychologistSessionCancelTime: Boolean = (sessionStartTimeBlockHeight - CONTEXT.HEIGHT >= psychologistSessionCancelationPeriod)
+    val isClientSessionCancelTime: Boolean = (sessionStartTimeBlockHeight - CONTEXT.HEIGHT >= clientSessionCancelationPeriod)
     val isClientSessionCancelTimePenalty: Boolean = (CONTEXT.HEIGHT - sessionStartTimeBlockHeight <= clientSessionCancelationPeriod) && (CONTEXT.HEIGHT - sessionStartTimeBlockHeight > 0)
     val isPartnerLayerOnePresent: Boolean = (partnerLayerOneAddressBytes.size > 0)
     val isPartnerLayerTwoPresent: Boolean = (partnerLayerTwoAddressBytes.size > 0)
