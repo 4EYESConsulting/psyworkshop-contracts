@@ -13,7 +13,7 @@
     // 1. (EventTokenId, Long.MaxValue)
     //
     // Registers
-    // R4: GroupElement                     (expertGE) // Psychologist address is initially the client address before the session is accepted.
+    // R4: GroupElement                     expertGE // Psychologist address is initially the client address before the session is accepted.
     // R5: (Int, Int)                       (eventStartTimeBlockHeight, eventEndTimeBlockHeight)
     // R6: Long                             eventPrice
     // R7: Long                             clients // 0L initially.
@@ -69,7 +69,10 @@
 
     }
 
-    def validTermination(tokenId: Coll[Byte]): Boolean = {
+    def validBoxTermination(boxAndTokenId: (Box, Coll[Byte])): Boolean = {
+
+        val box: Box = boxAndTokenId._1
+        val tokenId: Coll[Byte] = boxAndTokenId._2
 
         OUTPUTS.forall({ (output: Box) => {
 
@@ -85,7 +88,7 @@
 
             val validBoxDestruction: Boolean = {
 
-                (output.propositionBytes != SELF.propositionBytes)
+                (output.propositionBytes != box.propositionBytes)
 
             }
 
@@ -150,20 +153,18 @@
             val requestOut: Box = OUTPUTS(0)
             val replyOut: Box = OUTPUTS(1)
 
-            val validRequestOut: Boolean = {
+            val validRequest: Boolean = {
 
                 val validClientIncrement: Boolean = (requestOut.R7[Long].get == clients + 1L)
 
                 val validRecreation: Boolean = {
 
-                    allOf(Coll(
-                        (requestOut.value == SELF.value),
-                        (requestOut.propositionBytes == SELF.propositionBytes),
-                        (requestOut.tokens(0)._1 == eventTokenId),
-                        (requestOut.R4[GroupElement].get == expertGE),
-                        (requestOut.R5[(Int, Int)].get == eventTimes),
-                        (requestOut.R6[Long].get == eventPrice)
-                    ))
+                    (requestOut.value == SELF.value) &&
+                    (requestOut.propositionBytes == SELF.propositionBytes) &&
+                    (requestOut.tokens(0)._1 == eventTokenId) &&
+                    (requestOut.R4[GroupElement].get == expertGE) &&
+                    (requestOut.R5[(Int, Int)].get == eventTimes) &&
+                    (requestOut.R6[Long].get == eventPrice)
 
                 }
 
@@ -172,7 +173,7 @@
 
             }
 
-            val validReplyOut: Boolean = {
+            val validReply: Boolean = {
 
                 val validContract: Boolean = (blake2b256(replyOut.propositionBytes) == $mindHealerReplyContractErgoTreeBytesHash)
 
@@ -189,13 +190,90 @@
 
             }
 
-            validRequestOut &&
-            validReplyOut
+            validRequest &&
+            validReply
 
         }
 
         sigmaProp(validJoinEventTx)
     
+    } else if (_txType.get == 2) {
+
+        // ===== Refund Event Tx ===== //
+        val validRefundEventTx: Boolean = {
+
+            // Inputs
+            val replyIn: Box = INPUTS(1)
+            val expertIn: Box = INPUTS(2)
+
+            // Outputs
+            val clientOut: Box = OUTPUTS(1)
+            val expertOut: Box = OUTPUTS(2)
+
+            val validReply: Boolean = 
+
+                val boxAndTokenId: (Box, Coll[Byte]) = (replyIn, eventTokenId)
+
+                val validErgoTree: Boolean = (blake2b256(replyIn.propositionBytes) == $mindHealerReplyContractErgoTreeBytesHash)
+
+                validErgoTree &&
+                validToken(boxAndTokenId) &&
+                validBoxTermination(boxAndTokenId)
+
+            }
+
+            val validClient: Boolean = {
+
+                val propAndBox: (SigmaProp, Box) = (clientOut, proveDlog(clientOut.R4[GroupElement].get))
+                
+                val validRefund: Boolean = (clientOut.tokens(0) == replyIn.tokens(1))
+
+                isSigmaPropEqualToBoxProp(sigmaPropAndBox) &&
+                validRefund
+
+            }
+
+            val validExpert: Boolean = {
+
+                val boxAndTokenIdIn: (Box, Coll[Byte]) = (expertIn, $mindHealerRegistrationTokenId)
+                val propAndBoxIn: (SigmaProp, Box) = (expertIn, expertSigmaProp)
+                
+                val boxAndTokenIdOut: (Box, Coll[Byte]) = (expertOut, $mindHealerRegistrationTokenId)
+                val propAndBoxOut: (SigmaProp, Box) = (expertOut, expertSigmaProp)
+                
+                isSigmaPropEqualToBoxProp(propAndBoxIn) &&
+                validToken(boxAndTokenIdIn) &&
+                isSigmaPropEqualToBoxProp(propAndBoxOut) &&
+                validToken(boxAndTokenIdOut)
+
+            }
+
+            val validRequest: Boolean = {
+
+                val validClientDecrement: Boolean = (requestOut.R7[Long].get == clients - 1L)
+
+                val validRecreation: Boolean = {
+
+                    (requestOut.value == SELF.value) &&
+                    (requestOut.propositionBytes == SELF.propositionBytes) &&
+                    (requestOut.tokens(0)._1 == eventTokenId) &&
+                    (requestOut.R4[GroupElement].get == expertGE) &&
+                    (requestOut.R5[(Int, Int)].get == eventTimes) &&
+                    (requestOut.R6[Long].get == eventPrice)
+
+                }
+
+            }
+
+            validReply &&
+            validClient &&
+            validExpert &&
+            validRequest
+
+        }
+
+        sigmaProp(validRefundEventTx)
+
     } else {
         sigmaProp(false)
     }

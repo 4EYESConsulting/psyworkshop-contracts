@@ -14,12 +14,8 @@
     // 2. (SigUSDId, SessionPrice + ?Collateral) // If provided by the psychologist.
     //
     // Registers
-    // R4: Int                              sessionStartTimeBlockHeight
-    // R5: (SigmaProp, SigmaProp)           (clientAddressSigmaProp, pyschologistAddressSigmaProp) // Psychologist address is initially the client address before the session is accepted.
-    // R6: (Coll[Byte], Coll[Byte])         (partnerLayerOneAddressBytes, partnerLayerTwoAddressBytes) // Empty Coll[Byte]() if not present.                            
-    // R7: (Boolean, Boolean)               (isSessionAccepted, isSessionProblem) // Both false initially.
-    // R8: Long                             sessionPrice
-    // R9: Long                             collateral  // Assume 0 initially.
+    // R4: GroupElement                     clientGE
+    // R5: (Coll[Byte], Coll[Byte])         (partnerLayerOneAddressBytes, partnerLayerTwoAddressBytes) // Empty Coll[Byte]() if not present.
 
     // ===== Transactions ===== //
     // 1. Accept Session Tx
