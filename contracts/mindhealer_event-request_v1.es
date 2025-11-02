@@ -39,7 +39,6 @@
 
     // ===== Compile Time Constants ($) ===== //
     // $mindHealerRegistrationTokenId: Coll[Byte]
-    // $mindHealerFeeAddressBytesHash: Coll[Byte]
     // $mindHealerReplyContractErgoTreeBytesHash: Coll[Byte]
     // $eventPriceTokenId: Coll[Byte] // e.g. SigUSD
 
@@ -53,7 +52,7 @@
 
     // ===== Functions ===== //
     // def validToken: Box => Boolean
-    // def validTermination: Coll[Byte] => Boolean
+    // def validBoxTermination: Coll[Byte] => Boolean
     // def isSigmaPropEqualToBoxProp: (SigmaProp, Box) => Boolean
     
     def validToken(boxAndTokenId: (Box, Coll[Byte])): Boolean = { 
@@ -221,18 +220,6 @@
 
             }
 
-            // This logic will be handled by the reply contract instead.
-            // val validClient: Boolean = {
-
-            //     val propAndBox: (SigmaProp, Box) = (clientOut, proveDlog(clientOut.R4[GroupElement].get))
-                
-            //     val validRefund: Boolean = (clientOut.tokens(0) == replyIn.tokens(1))
-
-            //     isSigmaPropEqualToBoxProp(sigmaPropAndBox) &&
-            //     validRefund
-
-            // }
-
             val validExpert: Boolean = {
 
                 val boxAndRegistrationIn: (Box, Coll[Byte]) = (expertIn, $mindHealerRegistrationTokenId)
@@ -324,7 +311,7 @@
 
                 val boxAndTokenId: (Box, Coll[Byte]) = (SELF, eventTokenId)
                 
-                validTermination(boxAndTokenId)
+                validBoxTermination(boxAndTokenId)
 
             }
 
