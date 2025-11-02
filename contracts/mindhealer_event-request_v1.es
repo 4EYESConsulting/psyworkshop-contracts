@@ -305,29 +305,18 @@
 
             val validExpert: Boolean = {
 
-                val boxAndRegistrationIn: (Box, Coll[Byte]) = (expertIn, $mindHealerRegistrationTokenId)
                 val propAndBoxIn: (SigmaProp, Box) = (expertIn, expertSigmaProp)
-                
-                val boxAndRegistrationOut: (Box, Coll[Byte]) = (expertOut, $mindHealerRegistrationTokenId)
-                val propAndBoxOut: (SigmaProp, Box) = (expertOut, expertSigmaProp)
-                
-                val boxAndPaymentOut: (Box, Coll[Byte]) = (expertOut, $eventPriceTokenId)
+                val boxAndRegistrationIn: (Box, Coll[Byte]) = (expertIn, $mindHealerRegistrationTokenId)
+                val expertAmount: Long = (80 * clients * eventPrice) / 100L
+
+                val validRegistrationToken: Boolean = (expertOut.tokens(0)._1 == $mindHealerRegistrationTokenId)
+                val validPaymentToken: Boolean = (expertOut.tokens(1) == ($eventPriceTokenId, expertAmount))
                 
                 isSigmaPropEqualToBoxProp(propAndBoxIn) &&
                 validToken(boxAndRegistrationIn) &&
                 isSigmaPropEqualToBoxProp(propAndBoxOut) &&
-                validToken(boxAndRegistrationOut) &&
-                validToken(boxAndPaymentOut)
-
-            }
-
-            val validMindHealerFee: Boolean = {
-
-                val validErgoTree: Boolean = (blake2b256(mindHealerFee.propositionBytes) == $mindHealerFeeAddressBytesHash)
-                val boxAndPaymentOut: (Box, Coll[Byte]) = (mindHealerFee, $eventPriceTokenId)
-
-                validErgoTree &&
-                validToken(boxAndPaymentOut)
+                validRegistrationToken &&
+                validPaymentToken
 
             }
 
