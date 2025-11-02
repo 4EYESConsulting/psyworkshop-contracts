@@ -207,10 +207,9 @@
             val expertIn: Box = INPUTS(2)
 
             // Outputs
-            val clientOut: Box = OUTPUTS(1)
             val expertOut: Box = OUTPUTS(2)
 
-            val validReply: Boolean = 
+            val validReply: Boolean = {
 
                 val boxAndTokenId: (Box, Coll[Byte]) = (replyIn, eventTokenId)
 
@@ -222,29 +221,30 @@
 
             }
 
-            val validClient: Boolean = {
+            // This logic will be handled by the reply contract instead.
+            // val validClient: Boolean = {
 
-                val propAndBox: (SigmaProp, Box) = (clientOut, proveDlog(clientOut.R4[GroupElement].get))
+            //     val propAndBox: (SigmaProp, Box) = (clientOut, proveDlog(clientOut.R4[GroupElement].get))
                 
-                val validRefund: Boolean = (clientOut.tokens(0) == replyIn.tokens(1))
+            //     val validRefund: Boolean = (clientOut.tokens(0) == replyIn.tokens(1))
 
-                isSigmaPropEqualToBoxProp(sigmaPropAndBox) &&
-                validRefund
+            //     isSigmaPropEqualToBoxProp(sigmaPropAndBox) &&
+            //     validRefund
 
-            }
+            // }
 
             val validExpert: Boolean = {
 
-                val boxAndTokenIdIn: (Box, Coll[Byte]) = (expertIn, $mindHealerRegistrationTokenId)
+                val boxAndRegistrationIn: (Box, Coll[Byte]) = (expertIn, $mindHealerRegistrationTokenId)
                 val propAndBoxIn: (SigmaProp, Box) = (expertIn, expertSigmaProp)
                 
-                val boxAndTokenIdOut: (Box, Coll[Byte]) = (expertOut, $mindHealerRegistrationTokenId)
+                val boxAndRegistrationOut: (Box, Coll[Byte]) = (expertOut, $mindHealerRegistrationTokenId)
                 val propAndBoxOut: (SigmaProp, Box) = (expertOut, expertSigmaProp)
                 
                 isSigmaPropEqualToBoxProp(propAndBoxIn) &&
-                validToken(boxAndTokenIdIn) &&
+                validToken(boxAndRegistrationIn) &&
                 isSigmaPropEqualToBoxProp(propAndBoxOut) &&
-                validToken(boxAndTokenIdOut)
+                validToken(boxAndRegistrationOut)
 
             }
 
@@ -273,6 +273,80 @@
         }
 
         sigmaProp(validRefundEventTx)
+
+    } else if (_txType.get == 3) {
+
+        // ===== Claim Reward Tx ===== //
+        val validClaimRewardTx: Boolean = {
+
+            // Inputs
+            val repliesIn: Coll[Box] = INPUTS.slice(1, INPUTS.size-1)
+            val expertIn: Box = INPUTS(INPUTS.size-1)
+
+            // Outputs
+            val expertOut: Box = OUTPUTS(0)
+            val mindHealerFee: Box = OUTPUTS(1)
+
+            val validReplies: Boolean = {
+
+                repliesIn.forall({ (replyIn: Box) =>  
+
+                    val boxAndTokenId: (Box, Coll[Byte]) = (replyIn, eventTokenId)
+
+                    val validErgoTree: Boolean = (blake2b256(replyIn.propositionBytes) == $mindHealerReplyContractErgoTreeBytesHash)
+
+                    validErgoTree &&
+                    validToken(boxAndTokenId) &&
+                    validBoxTermination(boxAndTokenId)
+
+                })
+            
+            }
+
+            val validExpert: Boolean = {
+
+                val boxAndRegistrationIn: (Box, Coll[Byte]) = (expertIn, $mindHealerRegistrationTokenId)
+                val propAndBoxIn: (SigmaProp, Box) = (expertIn, expertSigmaProp)
+                
+                val boxAndRegistrationOut: (Box, Coll[Byte]) = (expertOut, $mindHealerRegistrationTokenId)
+                val propAndBoxOut: (SigmaProp, Box) = (expertOut, expertSigmaProp)
+                
+                val boxAndPaymentOut: (Box, Coll[Byte]) = (expertOut, $eventPriceTokenId)
+                
+                isSigmaPropEqualToBoxProp(propAndBoxIn) &&
+                validToken(boxAndRegistrationIn) &&
+                isSigmaPropEqualToBoxProp(propAndBoxOut) &&
+                validToken(boxAndRegistrationOut) &&
+                validToken(boxAndPaymentOut)
+
+            }
+
+            val validMindHealerFee: Boolean = {
+
+                val validErgoTree: Boolean = (blake2b256(mindHealerFee.propositionBytes) == $mindHealerFeeAddressBytesHash)
+                val boxAndPaymentOut: (Box, Coll[Byte]) = (mindHealerFee, $eventPriceTokenId)
+
+                validErgoTree &&
+                validToken(boxAndPaymentOut)
+
+            }
+
+            val validRequest: Boolean = {
+
+                val boxAndTokenId: (Box, Coll[Byte]) = (SELF, eventTokenId)
+                
+                validTermination(boxAndTokenId)
+
+            }
+
+            validReplies &&
+            validExpert &&
+            validMindHealerFee &&
+            validRequest
+
+        }
+
+        sigmaProp(validClaimRewardTx)
 
     } else {
         sigmaProp(false)
