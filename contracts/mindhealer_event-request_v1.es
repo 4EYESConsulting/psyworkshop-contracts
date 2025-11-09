@@ -10,7 +10,8 @@
 
     // ===== Box Contents ===== //
     // Tokens
-    // 1. (EventTokenId, Long.MaxValue)
+    //  1. (EventTokenId, 1)
+    //  2. (ReplyTokenId, Long.MaxValue)
     //
     // Registers
     // R4: GroupElement                     expertGE // Psychologist address is initially the client address before the session is accepted.
@@ -54,6 +55,7 @@
     // def validToken: Box => Boolean
     // def validBoxTermination: Coll[Byte] => Boolean
     // def isSigmaPropEqualToBoxProp: (SigmaProp, Box) => Boolean
+    // def isSameTokenAmount: (Coll[Byte], Long) => Boolean
     
     def validToken(boxAndTokenId: (Box, Coll[Byte])): Boolean = { 
 
@@ -68,7 +70,7 @@
 
     }
 
-    def validBoxTermination(boxAndTokenId: (Box, Coll[Byte])): Boolean = {
+    def validBoxTermination(boxAndTokenId: (Box, Coll[Byte])): Boolean = { // Split burn and spending into different functions.
 
         val box: Box = boxAndTokenId._1
         val tokenId: Coll[Byte] = boxAndTokenId._2
@@ -122,11 +124,49 @@
 
     }
 
+    def isSameTokenAmount(tokenIdAndOffset: (Coll[Byte], Long)): Boolean = {
+
+        val tokenId: Coll[Byte] = tokenIdAndOffset._1
+        val offset: Long        = tokenIdAndOffset._2
+
+        // 1. For each box, get the token with input id.
+        // 2. Calculate the cumulative amount.
+        val inAmount: Long = INTPUTS.fold(0L, { (input: Box) =>  
+            
+            val tokens: Coll[(Coll[Byte], Long)] = input.tokens.filter({ (token: (Coll[Byte, Long])) => token._1 == tokenId })
+
+            val amount = tokens.fold(0L, { (acc: Long, token: (Coll[Byte], Long)) => token._2 + acc })
+
+            amount
+
+        })
+
+        val outAmount: Long = OUTPUTS.fold(0L, { (output: Box) =>  
+            
+            val tokens: Coll[(Coll[Byte], Long)] = output.tokens.filter({ (token: (Coll[Byte, Long])) => token._1 == tokenId })
+
+            val amount = tokens.fold(0L, { (acc: Long, token: (Coll[Byte], Long)) => token._2 + acc })
+
+            amount
+
+        })
+
+        val delta: Long = outAmount - inAmount
+        
+        if (delta < 0) { // Burn: Less tokens in outputs.
+            -1 * delta == offset
+        } else { // Mint: More tokens in outputs.
+            delta == offset
+        }
+
+    }
+
     // ===== Variables ===== //
     val _txType: Option[Int] = getVar[Int](0)
 
     val eventTokenId: Coll[Byte] = SELF.tokens(0)._1
-    val eventTokenAmount: Long = SELF.tokens(0)._2
+    val replyTokenId: Coll[Byte] = SELF.tokens(1)._1
+    val replyTokenAmount: Long   = SELF.tokens(1)._2 
     val expertGE: GroupElement = SELF.R4[GroupElement].get
     val expertSigmaProp: SigmaProp = proveDlog(expertGE)
     val eventTimes: (Int, Int) = SELF.R5[(Int, Int)].get
@@ -160,7 +200,8 @@
 
                     (requestOut.value == SELF.value) &&
                     (requestOut.propositionBytes == SELF.propositionBytes) &&
-                    (requestOut.tokens(0)._1 == eventTokenId) &&
+                    (requestOut.tokens(0)._1 = eventTokenId) &&
+                    (requestOut.tokens(1)._1 == replyTokenId) &&
                     (requestOut.R4[GroupElement].get == expertGE) &&
                     (requestOut.R5[(Int, Int)].get == eventTimes) &&
                     (requestOut.R6[Long].get == eventPrice)
@@ -177,8 +218,8 @@
                 val validContract: Boolean = (blake2b256(replyOut.propositionBytes) == $mindHealerReplyContractErgoTreeBytesHash)
 
                 val validEvenTokenTransfer: Boolean = {
-                    (replyOut.tokens(0) == (eventTokenId, 1L)) && 
-                    (requestOut.tokens(0)._2 == eventTokenAmount - 1L)
+                    (replyOut.tokens(0) == (replyTokenId, 1L)) && 
+                    (requestOut.tokens(0)._2 == replyTokenAmount - 1L)
                 }
 
                 val validClientPayment: Boolean = (replyOut.tokens(1) == ($eventPriceTokenId, eventPrice))
@@ -210,13 +251,13 @@
 
             val validReply: Boolean = {
 
-                val boxAndTokenId: (Box, Coll[Byte]) = (replyIn, eventTokenId)
+                val boxAndTokenId: (Box, Coll[Byte]) = (replyIn, replyTokenId)
 
                 val validErgoTree: Boolean = (blake2b256(replyIn.propositionBytes) == $mindHealerReplyContractErgoTreeBytesHash)
 
+                // Leave remaining checks for the reply box itself.
                 validErgoTree &&
-                validToken(boxAndTokenId) &&
-                validBoxTermination(boxAndTokenId)
+                validToken(boxAndTokenId)
 
             }
 
@@ -237,18 +278,26 @@
 
             val validRequest: Boolean = {
 
-                val validClientDecrement: Boolean = (requestOut.R7[Long].get == clients - 1L)
+                val tokenIdAndOffset: (Coll[Byte], Long) = (replyTokenId, 1L)
 
+                val validClientDecrement: Boolean = (requestOut.R7[Long].get == clients - 1L) // Remove the client from the count.                
+                val validReplyTokenBurn: Boolean = isSameTokenAmount(tokenIdAndOffset) // Burn the reply token instead of returning to the request box.
+                
                 val validRecreation: Boolean = {
 
                     (requestOut.value == SELF.value) &&
                     (requestOut.propositionBytes == SELF.propositionBytes) &&
                     (requestOut.tokens(0)._1 == eventTokenId) &&
+                    (requestOut.tokens(1) == SELF.tokens(1)) && // Amount of reply tokens in the request box does not change.
                     (requestOut.R4[GroupElement].get == expertGE) &&
                     (requestOut.R5[(Int, Int)].get == eventTimes) &&
                     (requestOut.R6[Long].get == eventPrice)
 
                 }
+
+                validClientDecrement &&
+                validReplyTokenBurn &&
+                validRecreation
 
             }
 
@@ -283,8 +332,7 @@
                     val validErgoTree: Boolean = (blake2b256(replyIn.propositionBytes) == $mindHealerReplyContractErgoTreeBytesHash)
 
                     validErgoTree &&
-                    validToken(boxAndTokenId) &&
-                    validBoxTermination(boxAndTokenId)
+                    validToken(boxAndTokenId)
 
                 })
             
@@ -309,9 +357,11 @@
 
             val validRequest: Boolean = {
 
-                val boxAndTokenId: (Box, Coll[Byte]) = (SELF, eventTokenId)
-                
-                validBoxTermination(boxAndTokenId)
+                val boxAndEventTokenId: (Box, Coll[Byte]) = (SELF, eventTokenId)
+                val boxAndReplyTokenId: (Box, Coll[Byte]) = (SELF, replyTokenId)
+
+                validBoxTermination(boxAndEventTokenId)
+                validBoxTermination(boxAndReplyTokenId)
 
             }
 
