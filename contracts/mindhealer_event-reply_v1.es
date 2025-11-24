@@ -153,11 +153,11 @@
 
             val validClient: Boolean = {
 
-                val propAndBox: (SigmaProp, Box) = (clientOut, proveDlog(clientGE))
+                val propAndBox: (SigmaProp, Box) = (proveDlog(clientGE), clientOut)
                 
                 val validRefund: Boolean = (clientOut.tokens(0) == (eventPriceTokenId, eventPrice))
 
-                isSigmaPropEqualToBoxProp(sigmaPropAndBox) &&
+                isSigmaPropEqualToBoxProp(propAndBox) &&
                 validRefund
 
             }
@@ -193,14 +193,14 @@
                 // If both, search for both at the same time.
                 if (isPartner1) {
 
-                    val partners: Coll[Box] = OUTPUTS.filter({ (output: Box) => output.R4[Coll[Byte]].get == SELF.id })
+                    val layers: Coll[Box] = OUTPUTS.filter({ (output: Box) => output.R4[Coll[Byte]].get == SELF.id })
 
-                    val l1: Box = partners(0)
-                    val l2: Box = partners.getOrElse(1, SELF)
+                    val l1: Box = layers(0)
+                    val l2: Box = layers.getOrElse(1, SELF)
 
                     val validL1: Boolean = {
 
-                        (blake2b256(l1.propositionBytes) == partnerLayerOneHash)
+                        (blake2b256(l1.propositionBytes) == partner1) &&
                         (l1.tokens(0)._1 == eventPriceTokenId) &&
                         (l1.tokens(0)._2 == (eventPrice * 12L) / 100L)
 
@@ -210,7 +210,7 @@
 
                         if (isPartner2) {
 
-                            (blake2b256(l2.propositionBytes) == partnerLayerTwoHash)
+                            (blake2b256(l2.propositionBytes) == partner2) &&
                             (l2.tokens(0)._1 == eventPriceTokenId) &&
                             (l2.tokens(0)._2 == (eventPrice * 3L) / 100L)                            
 
