@@ -177,10 +177,6 @@
     val totalAmount: Long = eventPrice * clients
 
     val claimBuffer: Int = 720  // The expert can claim only 24hrs after the event ends, since there is 1 block every 2 minutes on average, there are 720 blocks every 24hrs on average.
-
-    val isEventAccepted: Boolean = (clients > 0L)
-    val isEventStarted: Boolean = (CONTEXT.HEIGHT > eventStartTimeBlockHeight)
-    val isEventOver: Boolean = (CONTEXT.HEIGHT > eventEndTimeBlockHeight)
     val isEventClaim: Boolean = (CONTEXT.HEIGHT > eventEndTimeBlockHeight + claimBuffer)
 
     if (_txType.get == 1) {
@@ -316,7 +312,7 @@
         val validClaimRewardTx: Boolean = {
 
             // Inputs
-            val repliesIn: Coll[Box] = INPUTS.slice(1, INPUTS.size-1)
+            val repliesIn: Coll[Box] = INPUTS.slice(2, INPUTS.size-1)
             val expertIn: Box = INPUTS(INPUTS.size-1)
 
             // Outputs
@@ -367,8 +363,8 @@
 
             validReplies &&
             validExpert &&
-            validMindHealerFee &&
-            validRequest
+            validRequest &&
+            isEventClaim
 
         }
 

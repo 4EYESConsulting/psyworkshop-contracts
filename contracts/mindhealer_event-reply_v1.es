@@ -129,7 +129,6 @@
 
     val isPartner1: Boolean = (partner1.size == 32) // 32 bytes from hash output/
     val isPartner2: Boolean = (partner2.size == 32)
-    val isPartners: Boolean = (isPartner1 || isPartner2)
 
     if (_txType.get == 1) {
 
@@ -172,6 +171,99 @@
         sigmaProp(validRefundEventTx)
 
     } else if (_txType.get == 2) {
+
+        // ===== Claim Reward Tx ===== //
+        val validClaimRewardTx: Boolean = {
+
+            // Inputs
+            val requestIn: Box = INPUTS(0)
+
+            // Outputs
+            val mindHealerFee: Box = OUTPUTS(1) 
+
+            val validRequest: Boolean = {
+
+                (requestIn.tokens(0)._1 == eventSingletonId) &&
+                (requestIn.tokens(1)._1 == replyTokenId)
+
+            }
+
+            val validPartners: Boolean = {
+
+                // If both, search for both at the same time.
+                if (isPartner1) {
+
+                    val partners: Coll[Box] = OUTPUTS.filter({ (output: Box) => output.R4[Coll[Byte]].get == SELF.id })
+
+                    val l1: Box = partners(0)
+                    val l2: Box = partners.getOrElse(1, SELF)
+
+                    val validL1: Boolean = {
+
+                        (blake2b256(l1.propositionBytes) == partnerLayerOneHash)
+                        (l1.tokens(0)._1 == eventPriceTokenId) &&
+                        (l1.tokens(0)._2 == (eventPrice * 12L) / 100L)
+
+                    }
+
+                    val validL2: Boolean = {
+
+                        if (isPartner2) {
+
+                            (blake2b256(l2.propositionBytes) == partnerLayerTwoHash)
+                            (l2.tokens(0)._1 == eventPriceTokenId) &&
+                            (l2.tokens(0)._2 == (eventPrice * 3L) / 100L)                            
+
+                        } else {
+                            true
+                        }
+
+                    }
+
+                    validL1 &&
+                    validL2
+
+                } else {
+                    true
+                }
+                
+            }
+
+            val validMindHealerFee: Boolean = {
+
+                val amount: Long = {
+
+                    if (isPartner1) {
+
+                        if (isPartner2) {
+
+                            5L
+
+                        } else {
+
+                            5L + 3L
+
+                        }
+
+                    } else {
+                        5L + 12L + 3L
+                    }
+
+                }
+
+                (blake2b256(mindHealerFee.propositionBytes) == $mindHealerFeeAddressBytesHash) &&
+                (mindHealerFee.tokens(0)._1 == eventPriceTokenId) &&
+                (mindHealerFee.tokens(0)._2 >= (eventPrice * amount) / 100L)
+
+            }
+
+            validRequest &&
+            validPartners &&
+            validMindHealerFee
+
+        }
+
+        sigmaProp(validClaimRewardTx)
 
     } else {
         sigmaProp(false)
