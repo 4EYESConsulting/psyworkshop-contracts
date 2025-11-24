@@ -131,23 +131,23 @@
 
         // 1. For each box, get the token with input id.
         // 2. Calculate the cumulative amount.
-        val inAmount: Long = INTPUTS.fold(0L, { (input: Box) =>  
+        val inAmount: Long = INPUTS.fold(0L, { (acc1: Long, input: Box) =>  
             
-            val tokens: Coll[(Coll[Byte], Long)] = input.tokens.filter({ (token: (Coll[Byte, Long])) => token._1 == tokenId })
+            val tokens: Coll[(Coll[Byte], Long)] = input.tokens.filter({ (token: (Coll[Byte], Long)) => token._1 == tokenId })
 
-            val amount = tokens.fold(0L, { (acc: Long, token: (Coll[Byte], Long)) => token._2 + acc })
+            val amount = tokens.fold(0L, { (acc2: Long, token: (Coll[Byte], Long)) => token._2 + acc2 })
 
-            amount
+            amount + acc1
 
         })
 
-        val outAmount: Long = OUTPUTS.fold(0L, { (output: Box) =>  
+        val outAmount: Long = OUTPUTS.fold(0L, { (acc1: Long, output: Box) =>  
             
-            val tokens: Coll[(Coll[Byte], Long)] = output.tokens.filter({ (token: (Coll[Byte, Long])) => token._1 == tokenId })
+            val tokens: Coll[(Coll[Byte], Long)] = output.tokens.filter({ (token: (Coll[Byte], Long)) => token._1 == tokenId })
 
-            val amount = tokens.fold(0L, { (acc: Long, token: (Coll[Byte], Long)) => token._2 + acc })
+            val amount = tokens.fold(0L, { (acc2: Long, token: (Coll[Byte], Long)) => token._2 + acc2 })
 
-            amount
+            amount + acc1
 
         })
 
@@ -196,7 +196,7 @@
 
                     (requestOut.value == SELF.value) &&
                     (requestOut.propositionBytes == SELF.propositionBytes) &&
-                    (requestOut.tokens(0)._1 = eventTokenId) &&
+                    (requestOut.tokens(0)._1 == eventTokenId) &&
                     (requestOut.tokens(1)._1 == replyTokenId) &&
                     (requestOut.R4[GroupElement].get == expertGE) &&
                     (requestOut.R5[(Int, Int)].get == eventTimes) &&
@@ -221,7 +221,7 @@
                 val validClientPayment: Boolean = (replyOut.tokens(1) == ($eventPriceTokenId, eventPrice))
 
                 validContract &&
-                validEvenTokenTransfer &&
+                validEvenTokenTransfer && 
                 validClientPayment
 
             }
@@ -243,6 +243,7 @@
             val expertIn: Box = INPUTS(2)
 
             // Outputs
+            val requestOut: Box = OUTPUTS(0)
             val expertOut: Box = OUTPUTS(2)
 
             val validReply: Boolean = {
@@ -260,14 +261,14 @@
             val validExpert: Boolean = {
 
                 val boxAndRegistrationIn: (Box, Coll[Byte]) = (expertIn, $mindHealerRegistrationTokenId)
-                val propAndBoxIn: (SigmaProp, Box) = (expertIn, expertSigmaProp)
+                val propAndBoxIn: (SigmaProp, Box) = (expertSigmaProp, expertIn)
                 
                 val boxAndRegistrationOut: (Box, Coll[Byte]) = (expertOut, $mindHealerRegistrationTokenId)
-                val propAndBoxOut: (SigmaProp, Box) = (expertOut, expertSigmaProp)
+                val propAndBoxOut: (SigmaProp, Box) = (expertSigmaProp, expertOut)
                 
                 isSigmaPropEqualToBoxProp(propAndBoxIn) &&
                 validToken(boxAndRegistrationIn) &&
-                isSigmaPropEqualToBoxProp(propAndBoxOut) &&
+                isSigmaPropEqualToBoxProp(propAndBoxOut) && 
                 validToken(boxAndRegistrationOut)
 
             }
@@ -298,7 +299,6 @@
             }
 
             validReply &&
-            validClient &&
             validExpert &&
             validRequest
 
@@ -336,16 +336,17 @@
 
             val validExpert: Boolean = {
 
-                val propAndBoxIn: (SigmaProp, Box) = (expertIn, expertSigmaProp)
+                val propAndBoxIn: (SigmaProp, Box) = (expertSigmaProp, expertIn)
                 val boxAndRegistrationIn: (Box, Coll[Byte]) = (expertIn, $mindHealerRegistrationTokenId)
                 val expertAmount: Long = (80 * clients * eventPrice) / 100L
 
+                val propAndBoxOut: (SigmaProp, Box) = (expertSigmaProp, expertOut)
                 val validRegistrationToken: Boolean = (expertOut.tokens(0)._1 == $mindHealerRegistrationTokenId)
                 val validPaymentToken: Boolean = (expertOut.tokens(1) == ($eventPriceTokenId, expertAmount))
                 
                 isSigmaPropEqualToBoxProp(propAndBoxIn) &&
                 validToken(boxAndRegistrationIn) &&
-                isSigmaPropEqualToBoxProp(propAndBoxOut) &&
+                isSigmaPropEqualToBoxProp(propAndBoxOut) && 
                 validRegistrationToken &&
                 validPaymentToken
 
@@ -356,7 +357,7 @@
                 val boxAndEventTokenId: (Box, Coll[Byte]) = (SELF, eventTokenId)
                 val boxAndReplyTokenId: (Box, Coll[Byte]) = (SELF, replyTokenId)
 
-                validBoxTermination(boxAndEventTokenId)
+                validBoxTermination(boxAndEventTokenId) &&
                 validBoxTermination(boxAndReplyTokenId)
 
             }
